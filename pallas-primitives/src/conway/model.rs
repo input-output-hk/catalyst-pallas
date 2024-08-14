@@ -1240,8 +1240,6 @@ where
     }
 }
 
-pub type PostAlonzoTransactionOutput =
-    crate::babbage::PseudoPostAlonzoTransactionOutput<Value, DatumOption, ScriptRef>;
 
 pub type TransactionOutput = PseudoTransactionOutput<PostAlonzoTransactionOutput>;
 
@@ -1258,6 +1256,9 @@ impl<'b> From<MintedTransactionOutput<'b>> for TransactionOutput {
         }
     }
 }
+
+pub type PostAlonzoTransactionOutput =
+    crate::babbage::PseudoPostAlonzoTransactionOutput<Value, DatumOption, ScriptRef>;
 
 pub type MintedPostAlonzoTransactionOutput<'b> = crate::babbage::PseudoPostAlonzoTransactionOutput<
     Value,
