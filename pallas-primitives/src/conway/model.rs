@@ -12,7 +12,7 @@ use pallas_crypto::hash::Hash;
 
 use pallas_codec::utils::{
     Bytes, CborWrap, KeepRaw, KeyValuePairs, MaybeIndefArray, NonEmptyKeyValuePairs, NonEmptySet,
-    NonZeroInt, Nullable, PositiveCoin, Set,
+    NonZeroInt, Nullable, OnlyRaw, PositiveCoin, Set,
 };
 
 // required for derive attrs to work
@@ -1646,6 +1646,13 @@ pub type MintedBlock<'b> = PseudoBlock<
     KeepRaw<'b, AuxiliaryData>,
 >;
 
+pub type RawBlock<'b> = PseudoBlock<
+    OnlyRaw<'b, Header>,
+    OnlyRaw<'b, MintedTransactionBody<'b>>,
+    OnlyRaw<'b, MintedWitnessSet<'b>>,
+    OnlyRaw<'b, AuxiliaryData>,
+>;
+
 impl<'b> From<MintedBlock<'b>> for Block {
     fn from(x: MintedBlock<'b>) -> Self {
         Block {
@@ -1706,6 +1713,12 @@ pub type MintedTx<'b> = PseudoTx<
     KeepRaw<'b, AuxiliaryData>,
 >;
 
+pub type RawTx<'b> = PseudoTx<
+    OnlyRaw<'b, MintedTransactionBody<'b>>,
+    OnlyRaw<'b, MintedWitnessSet<'b>>,
+    OnlyRaw<'b, AuxiliaryData>,
+>;
+
 impl<'b> From<MintedTx<'b>> for Tx {
     fn from(x: MintedTx<'b>) -> Self {
         Tx {
@@ -1717,16 +1730,59 @@ impl<'b> From<MintedTx<'b>> for Tx {
     }
 }
 
+impl<'b> TryFrom<RawTx<'b>> for MintedTx<'b> {
+    type Error = minicbor::decode::Error;
+
+    fn try_from(x: RawTx<'b>) -> Result<Self, Self::Error> {
+        Ok(MintedTx {
+            transaction_body: minicbor::decode(x.transaction_body.raw_cbor())?,
+            transaction_witness_set: minicbor::decode(x.transaction_witness_set.raw_cbor())?,
+            success: x.success,
+            auxiliary_data: match x.auxiliary_data {
+                Nullable::Some(x) => Nullable::Some(minicbor::decode(x.raw_cbor())?),
+                Nullable::Null => Nullable::Null,
+                Nullable::Undefined => Nullable::Undefined,
+            },
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use pallas_codec::minicbor;
 
-    use super::MintedBlock;
+    use super::{MintedBlock, RawBlock, Block};
+    
+    // #[test]
+    // fn block_isomorphic_decoding_encoding_test() {
+    //     type BlockWrapper = (u16, Block);
+    //     let test_blocks = [
+    //         include_str!("../../../test_data/conway1.block"),
+    //         include_str!("../../../test_data/conway2.block"),
+    //         // interesting block with extreme values
+    //         include_str!("../../../test_data/conway3.block"),
+    //         // interesting block with extreme values
+    //         include_str!("../../../test_data/conway4.block"),
+    //     ];
 
-    type BlockWrapper<'b> = (u16, MintedBlock<'b>);
+    //     for (idx, block_str) in test_blocks.iter().enumerate() {
+    //         println!("decoding test block {}", idx + 1);
+    //         let bytes = hex::decode(block_str).unwrap_or_else(|_| panic!("bad block file {idx}"));
+
+    //         let block: BlockWrapper = minicbor::decode(bytes.as_slice())
+    //             .unwrap_or_else(|e| panic!("error decoding cbor for file {idx}: {e:?}"));
+
+    //         let bytes2 = minicbor::to_vec(block)
+    //             .unwrap_or_else(|e| panic!("error encoding block cbor for file {idx}: {e:?}"));
+
+    //         assert_eq!(bytes, bytes2, "encoded bytes didn't match original");
+    //         assert!(bytes.eq(&bytes2), "re-encoded bytes didn't match original");
+    //     }
+    // }
 
     #[test]
-    fn block_isomorphic_decoding_encoding() {
+    fn minted_block_isomorphic_decoding_encoding_test() {
+        type BlockWrapper<'b> = (u16, MintedBlock<'b>);
         let test_blocks = [
             include_str!("../../../test_data/conway1.block"),
             include_str!("../../../test_data/conway2.block"),
@@ -1740,7 +1796,33 @@ mod tests {
             println!("decoding test block {}", idx + 1);
             let bytes = hex::decode(block_str).unwrap_or_else(|_| panic!("bad block file {idx}"));
 
-            let block: BlockWrapper = minicbor::decode(&bytes)
+            let block: BlockWrapper = minicbor::decode(bytes.as_slice())
+                .unwrap_or_else(|e| panic!("error decoding cbor for file {idx}: {e:?}"));
+
+            let bytes2 = minicbor::to_vec(block)
+                .unwrap_or_else(|e| panic!("error encoding block cbor for file {idx}: {e:?}"));
+
+            assert!(bytes.eq(&bytes2), "re-encoded bytes didn't match original");
+        }
+    }
+
+    #[test]
+    fn raw_block_isomorphic_decoding_encoding_test() {
+        type BlockWrapper<'b> = (u16, RawBlock<'b>);
+        let test_blocks = [
+            include_str!("../../../test_data/conway1.block"),
+            include_str!("../../../test_data/conway2.block"),
+            // interesting block with extreme values
+            include_str!("../../../test_data/conway3.block"),
+            // interesting block with extreme values
+            include_str!("../../../test_data/conway4.block"),
+        ];
+
+        for (idx, block_str) in test_blocks.iter().enumerate() {
+            println!("decoding test block {}", idx + 1);
+            let bytes = hex::decode(block_str).unwrap_or_else(|_| panic!("bad block file {idx}"));
+
+            let block: BlockWrapper = minicbor::decode(bytes.as_slice())
                 .unwrap_or_else(|e| panic!("error decoding cbor for file {idx}: {e:?}"));
 
             let bytes2 = minicbor::to_vec(block)

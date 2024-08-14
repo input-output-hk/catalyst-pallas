@@ -1087,18 +1087,20 @@ pub struct OnlyRaw<'b, T> {
     _p: std::marker::PhantomData<T>,
 }
 
-impl<'b, T> OnlyRaw<'b, T>  {
+impl<'b, T> OnlyRaw<'b, T> {
     pub fn raw_cbor(&self) -> &'b [u8] {
         self.raw
     }
 }
 
-impl<'b, T> OnlyRaw<'b, T> where T: minicbor::Decode<'b, ()> {
+impl<'b, T> OnlyRaw<'b, T>
+where
+    T: minicbor::Decode<'b, ()>,
+{
     pub fn decode(self) -> Result<T, minicbor::decode::Error> {
         minicbor::decode(self.raw)
     }
 }
-
 
 impl<'b, T, C> minicbor::Decode<'b, C> for OnlyRaw<'b, T>
 where
