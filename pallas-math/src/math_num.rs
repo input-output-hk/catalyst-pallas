@@ -384,10 +384,10 @@ fn ipow(rop: &mut BigInt, x: &BigInt, n: i64) {
     }
 }
 
-/// Compute an approximation of 'ln(1 + x)' via continued fractions. Either for a
-///    maximum of 'maxN' iterations or until the absolute difference between two
-///    succeeding convergents is smaller than 'eps'. Assumes 'x' to be within
-///    [1,e).
+/// Compute an approximation of 'ln(1 + x)' via continued fractions. Either for
+/// a    maximum of 'maxN' iterations or until the absolute difference between
+/// two    succeeding convergents is smaller than 'eps'. Assumes 'x' to be
+/// within    [1,e).
 fn mp_ln_n(rop: &mut BigInt, max_n: i32, x: &BigInt, epsilon: &BigInt) {
     let mut ba: BigInt;
     let mut aa: BigInt;
