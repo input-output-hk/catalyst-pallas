@@ -444,12 +444,16 @@ pub use crate::alonzo::BootstrapWitness;
 
 #[derive(Serialize, Deserialize, Encode, Decode, Debug, PartialEq, Clone)]
 #[cbor(map)]
-pub struct WitnessSet {
+pub struct PseudoWitnessSet<T1, T2>
+where
+    T1: std::clone::Clone,
+    T2: std::clone::Clone,
+{
     #[n(0)]
     pub vkeywitness: Option<Vec<VKeyWitness>>,
 
     #[n(1)]
-    pub native_script: Option<Vec<NativeScript>>,
+    pub native_script: Option<Vec<T1>>,
 
     #[n(2)]
     pub bootstrap_witness: Option<Vec<BootstrapWitness>>,
@@ -458,7 +462,7 @@ pub struct WitnessSet {
     pub plutus_v1_script: Option<Vec<PlutusV1Script>>,
 
     #[n(4)]
-    pub plutus_data: Option<Vec<PlutusData>>,
+    pub plutus_data: Option<Vec<T2>>,
 
     #[n(5)]
     pub redeemer: Option<Vec<Redeemer>>,
@@ -467,55 +471,12 @@ pub struct WitnessSet {
     pub plutus_v2_script: Option<Vec<PlutusV2Script>>,
 }
 
-#[derive(Encode, Decode, Debug, PartialEq, Clone)]
-#[cbor(map)]
-pub struct MintedWitnessSet<'b> {
-    #[n(0)]
-    pub vkeywitness: Option<Vec<VKeyWitness>>,
+pub type WitnessSet = PseudoWitnessSet<NativeScript, PlutusData>;
 
-    #[n(1)]
-    pub native_script: Option<Vec<KeepRaw<'b, NativeScript>>>,
+pub type MintedWitnessSet<'b> =
+    PseudoWitnessSet<KeepRaw<'b, NativeScript>, KeepRaw<'b, PlutusData>>;
 
-    #[n(2)]
-    pub bootstrap_witness: Option<Vec<BootstrapWitness>>,
-
-    #[n(3)]
-    pub plutus_v1_script: Option<Vec<PlutusV1Script>>,
-
-    #[b(4)]
-    pub plutus_data: Option<Vec<KeepRaw<'b, PlutusData>>>,
-
-    #[n(5)]
-    pub redeemer: Option<Vec<Redeemer>>,
-
-    #[n(6)]
-    pub plutus_v2_script: Option<Vec<PlutusV2Script>>,
-}
-
-#[derive(Encode, Decode, Debug, PartialEq, Clone)]
-#[cbor(map)]
-pub struct RawWitnessSet<'b> {
-    #[n(0)]
-    pub vkeywitness: Option<Vec<VKeyWitness>>,
-
-    #[n(1)]
-    pub native_script: Option<Vec<OnlyRaw<'b, NativeScript>>>,
-
-    #[n(2)]
-    pub bootstrap_witness: Option<Vec<BootstrapWitness>>,
-
-    #[n(3)]
-    pub plutus_v1_script: Option<Vec<PlutusV1Script>>,
-
-    #[b(4)]
-    pub plutus_data: Option<Vec<OnlyRaw<'b, PlutusData>>>,
-
-    #[n(5)]
-    pub redeemer: Option<Vec<Redeemer>>,
-
-    #[n(6)]
-    pub plutus_v2_script: Option<Vec<PlutusV2Script>>,
-}
+pub type RawWitnessSet<'b> = PseudoWitnessSet<OnlyRaw<'b, NativeScript>, OnlyRaw<'b, PlutusData>>;
 
 impl<'b> From<MintedWitnessSet<'b>> for WitnessSet {
     fn from(x: MintedWitnessSet<'b>) -> Self {
@@ -849,7 +810,6 @@ mod tests {
             assert!(bytes.eq(&bytes2), "re-encoded bytes didn't match original");
         }
     }
-
 
     #[test]
     fn raw_block_isomorphic_decoding_encoding_test() {

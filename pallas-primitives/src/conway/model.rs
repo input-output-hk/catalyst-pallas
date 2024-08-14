@@ -1433,40 +1433,17 @@ pub use crate::alonzo::BootstrapWitness;
 
 #[derive(Serialize, Deserialize, Encode, Decode, Debug, PartialEq, Clone)]
 #[cbor(map)]
-pub struct WitnessSet {
+pub struct PseudoWitnessSet<T1, T2, T3>
+where
+    T1: std::clone::Clone,
+    T2: std::clone::Clone,
+    T3: std::clone::Clone,
+{
     #[n(0)]
     pub vkeywitness: Option<NonEmptySet<VKeyWitness>>,
 
     #[n(1)]
-    pub native_script: Option<NonEmptySet<NativeScript>>,
-
-    #[n(2)]
-    pub bootstrap_witness: Option<NonEmptySet<BootstrapWitness>>,
-
-    #[n(3)]
-    pub plutus_v1_script: Option<NonEmptySet<PlutusV1Script>>,
-
-    #[n(4)]
-    pub plutus_data: Option<NonEmptySet<PlutusData>>,
-
-    #[n(5)]
-    pub redeemer: Option<Redeemers>,
-
-    #[n(6)]
-    pub plutus_v2_script: Option<NonEmptySet<PlutusV2Script>>,
-
-    #[n(7)]
-    pub plutus_v3_script: Option<NonEmptySet<PlutusV3Script>>,
-}
-
-#[derive(Encode, Decode, Debug, PartialEq, Clone)]
-#[cbor(map)]
-pub struct MintedWitnessSet<'b> {
-    #[n(0)]
-    pub vkeywitness: Option<NonEmptySet<VKeyWitness>>,
-
-    #[n(1)]
-    pub native_script: Option<NonEmptySet<KeepRaw<'b, NativeScript>>>,
+    pub native_script: Option<NonEmptySet<T1>>,
 
     #[n(2)]
     pub bootstrap_witness: Option<NonEmptySet<BootstrapWitness>>,
@@ -1475,10 +1452,10 @@ pub struct MintedWitnessSet<'b> {
     pub plutus_v1_script: Option<NonEmptySet<PlutusV1Script>>,
 
     #[b(4)]
-    pub plutus_data: Option<NonEmptySet<KeepRaw<'b, PlutusData>>>,
+    pub plutus_data: Option<NonEmptySet<T2>>,
 
     #[n(5)]
-    pub redeemer: Option<KeepRaw<'b, Redeemers>>,
+    pub redeemer: Option<T3>,
 
     #[n(6)]
     pub plutus_v2_script: Option<NonEmptySet<PlutusV2Script>>,
@@ -1487,33 +1464,13 @@ pub struct MintedWitnessSet<'b> {
     pub plutus_v3_script: Option<NonEmptySet<PlutusV3Script>>,
 }
 
-#[derive(Encode, Decode, Debug, PartialEq, Clone)]
-#[cbor(map)]
-pub struct RawWitnessSet<'b> {
-    #[n(0)]
-    pub vkeywitness: Option<NonEmptySet<VKeyWitness>>,
+pub type WitnessSet = PseudoWitnessSet<NativeScript, PlutusData, Redeemers>;
 
-    #[n(1)]
-    pub native_script: Option<NonEmptySet<OnlyRaw<'b, NativeScript>>>,
+pub type MintedWitnessSet<'b> =
+    PseudoWitnessSet<KeepRaw<'b, NativeScript>, KeepRaw<'b, PlutusData>, KeepRaw<'b, Redeemers>>;
 
-    #[n(2)]
-    pub bootstrap_witness: Option<NonEmptySet<BootstrapWitness>>,
-
-    #[n(3)]
-    pub plutus_v1_script: Option<NonEmptySet<PlutusV1Script>>,
-
-    #[b(4)]
-    pub plutus_data: Option<NonEmptySet<OnlyRaw<'b, PlutusData>>>,
-
-    #[n(5)]
-    pub redeemer: Option<OnlyRaw<'b, Redeemers>>,
-
-    #[n(6)]
-    pub plutus_v2_script: Option<NonEmptySet<PlutusV2Script>>,
-
-    #[n(7)]
-    pub plutus_v3_script: Option<NonEmptySet<PlutusV3Script>>,
-}
+pub type RawWitnessSet<'b> =
+    PseudoWitnessSet<OnlyRaw<'b, NativeScript>, OnlyRaw<'b, PlutusData>, OnlyRaw<'b, Redeemers>>;
 
 impl<'b> From<MintedWitnessSet<'b>> for WitnessSet {
     fn from(x: MintedWitnessSet<'b>) -> Self {
