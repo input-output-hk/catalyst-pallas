@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use pallas_codec::minicbor::{Decode, Encode};
 use pallas_crypto::hash::Hash;
 
-use pallas_codec::utils::{Bytes, CborWrap, KeepRaw, KeyValuePairs, MaybeIndefArray, Nullable, OnlyRaw};
+use pallas_codec::utils::{
+    Bytes, CborWrap, KeepRaw, KeyValuePairs, MaybeIndefArray, Nullable, OnlyRaw,
+};
 
 // required for derive attrs to work
 use pallas_codec::minicbor;
@@ -289,6 +291,8 @@ pub type TransactionBody = PseudoTransactionBody<TransactionOutput>;
 
 pub type MintedTransactionBody<'a> = PseudoTransactionBody<MintedTransactionOutput<'a>>;
 
+pub type RawTransactionBody<'a> = PseudoTransactionBody<RawTransactionOutput<'a>>;
+
 impl<'a> From<MintedTransactionBody<'a>> for TransactionBody {
     fn from(value: MintedTransactionBody<'a>) -> Self {
         Self {
@@ -359,6 +363,8 @@ pub type TransactionOutput = PseudoTransactionOutput<PostAlonzoTransactionOutput
 pub type MintedTransactionOutput<'b> =
     PseudoTransactionOutput<MintedPostAlonzoTransactionOutput<'b>>;
 
+pub type RawTransactionOutput<'b> = PseudoTransactionOutput<RawPostAlonzoTransactionOutput<'b>>;
+
 impl<'b> From<MintedTransactionOutput<'b>> for TransactionOutput {
     fn from(value: MintedTransactionOutput<'b>) -> Self {
         match value {
@@ -389,6 +395,9 @@ pub type PostAlonzoTransactionOutput =
 
 pub type MintedPostAlonzoTransactionOutput<'b> =
     PseudoPostAlonzoTransactionOutput<Value, MintedDatumOption<'b>, MintedScriptRef<'b>>;
+
+pub type RawPostAlonzoTransactionOutput<'b> =
+    PseudoPostAlonzoTransactionOutput<Value, RawDatumOption<'b>, RawScriptRef<'b>>;
 
 impl<'b> From<MintedPostAlonzoTransactionOutput<'b>> for PostAlonzoTransactionOutput {
     fn from(value: MintedPostAlonzoTransactionOutput<'b>) -> Self {
@@ -475,6 +484,31 @@ pub struct MintedWitnessSet<'b> {
 
     #[b(4)]
     pub plutus_data: Option<Vec<KeepRaw<'b, PlutusData>>>,
+
+    #[n(5)]
+    pub redeemer: Option<Vec<Redeemer>>,
+
+    #[n(6)]
+    pub plutus_v2_script: Option<Vec<PlutusV2Script>>,
+}
+
+#[derive(Encode, Decode, Debug, PartialEq, Clone)]
+#[cbor(map)]
+pub struct RawWitnessSet<'b> {
+    #[n(0)]
+    pub vkeywitness: Option<Vec<VKeyWitness>>,
+
+    #[n(1)]
+    pub native_script: Option<Vec<OnlyRaw<'b, NativeScript>>>,
+
+    #[n(2)]
+    pub bootstrap_witness: Option<Vec<BootstrapWitness>>,
+
+    #[n(3)]
+    pub plutus_v1_script: Option<Vec<PlutusV1Script>>,
+
+    #[b(4)]
+    pub plutus_data: Option<Vec<OnlyRaw<'b, PlutusData>>>,
 
     #[n(5)]
     pub redeemer: Option<Vec<Redeemer>>,
@@ -591,6 +625,8 @@ pub type ScriptRef = PseudoScript<NativeScript>;
 
 pub type MintedScriptRef<'b> = PseudoScript<KeepRaw<'b, NativeScript>>;
 
+pub type RawScriptRef<'b> = PseudoScript<OnlyRaw<'b, NativeScript>>;
+
 impl<'b> From<MintedScriptRef<'b>> for ScriptRef {
     fn from(value: MintedScriptRef<'b>) -> Self {
         match value {
@@ -686,6 +722,13 @@ pub type MintedBlock<'b> = PseudoBlock<
     KeepRaw<'b, AuxiliaryData>,
 >;
 
+pub type RawBlock<'b> = PseudoBlock<
+    OnlyRaw<'b, Header>,
+    OnlyRaw<'b, RawTransactionBody<'b>>,
+    OnlyRaw<'b, RawWitnessSet<'b>>,
+    OnlyRaw<'b, AuxiliaryData>,
+>;
+
 impl<'b> From<MintedBlock<'b>> for Block {
     fn from(x: MintedBlock<'b>) -> Self {
         Block {
@@ -746,6 +789,12 @@ pub type MintedTx<'b> = PseudoTx<
     KeepRaw<'b, AuxiliaryData>,
 >;
 
+pub type RawTx<'b> = PseudoTx<
+    OnlyRaw<'b, RawTransactionBody<'b>>,
+    OnlyRaw<'b, RawWitnessSet<'b>>,
+    OnlyRaw<'b, AuxiliaryData>,
+>;
+
 impl<'b> From<MintedTx<'b>> for Tx {
     fn from(x: MintedTx<'b>) -> Self {
         Tx {
@@ -761,13 +810,50 @@ impl<'b> From<MintedTx<'b>> for Tx {
 mod tests {
     use pallas_codec::minicbor;
 
-    use super::{MintedBlock, TransactionOutput};
+    use super::{MintedBlock, RawBlock, TransactionOutput};
     use crate::Fragment;
 
-    type BlockWrapper<'b> = (u16, MintedBlock<'b>);
+    #[test]
+    fn minted_block_isomorphic_decoding_encoding_test() {
+        type BlockWrapper<'b> = (u16, MintedBlock<'b>);
+        let test_blocks = [
+            include_str!("../../../test_data/babbage1.block"),
+            include_str!("../../../test_data/babbage2.block"),
+            include_str!("../../../test_data/babbage3.block"),
+            // peculiar block with single plutus cost model
+            include_str!("../../../test_data/babbage4.block"),
+            // peculiar block with i32 overlfow
+            include_str!("../../../test_data/babbage5.block"),
+            // peculiar block with map undef in plutus data
+            include_str!("../../../test_data/babbage6.block"),
+            // block with generic int in cbor
+            include_str!("../../../test_data/babbage7.block"),
+            // block with indef bytes for plutus data bignum
+            include_str!("../../../test_data/babbage8.block"),
+            // block with inline datum that fails hashes
+            include_str!("../../../test_data/babbage9.block"),
+            // block with pool margin numerator greater than i64::MAX
+            include_str!("../../../test_data/babbage10.block"),
+        ];
+
+        for (idx, block_str) in test_blocks.iter().enumerate() {
+            println!("decoding test block {}", idx + 1);
+            let bytes = hex::decode(block_str).unwrap_or_else(|_| panic!("bad block file {idx}"));
+
+            let block: BlockWrapper = minicbor::decode(&bytes[..])
+                .unwrap_or_else(|e| panic!("error decoding cbor for file {idx}: {e:?}"));
+
+            let bytes2 = minicbor::to_vec(block)
+                .unwrap_or_else(|e| panic!("error encoding block cbor for file {idx}: {e:?}"));
+
+            assert!(bytes.eq(&bytes2), "re-encoded bytes didn't match original");
+        }
+    }
+
 
     #[test]
-    fn block_isomorphic_decoding_encoding() {
+    fn raw_block_isomorphic_decoding_encoding_test() {
+        type BlockWrapper<'b> = (u16, RawBlock<'b>);
         let test_blocks = [
             include_str!("../../../test_data/babbage1.block"),
             include_str!("../../../test_data/babbage2.block"),

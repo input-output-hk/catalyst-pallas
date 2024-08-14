@@ -20,8 +20,8 @@ use pallas_codec::minicbor;
 
 pub use crate::alonzo::VrfCert;
 
-use crate::babbage::{self, RawDatumOption};
 pub use crate::babbage::HeaderBody;
+use crate::babbage::{self, RawDatumOption};
 
 pub use crate::babbage::OperationalCert;
 
@@ -1265,11 +1265,8 @@ pub type MintedPostAlonzoTransactionOutput<'b> = crate::babbage::PseudoPostAlonz
     MintedScriptRef<'b>,
 >;
 
-pub type RawPostAlonzoTransactionOutput<'b> = crate::babbage::PseudoPostAlonzoTransactionOutput<
-    Value,
-    RawDatumOption<'b>,
-    RawScriptRef<'b>,
->;
+pub type RawPostAlonzoTransactionOutput<'b> =
+    crate::babbage::PseudoPostAlonzoTransactionOutput<Value, RawDatumOption<'b>, RawScriptRef<'b>>;
 
 impl<'b> From<MintedPostAlonzoTransactionOutput<'b>> for PostAlonzoTransactionOutput {
     fn from(value: MintedPostAlonzoTransactionOutput<'b>) -> Self {
