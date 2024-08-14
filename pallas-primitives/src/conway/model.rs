@@ -1240,7 +1240,6 @@ where
     }
 }
 
-
 pub type TransactionOutput = PseudoTransactionOutput<PostAlonzoTransactionOutput>;
 
 pub type MintedTransactionOutput<'b> =
