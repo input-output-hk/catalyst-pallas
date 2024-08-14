@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use pallas_codec::minicbor::{Decode, Encode};
 use pallas_crypto::hash::Hash;
 
-use pallas_codec::utils::{Bytes, CborWrap, KeepRaw, KeyValuePairs, MaybeIndefArray, Nullable};
+use pallas_codec::utils::{Bytes, CborWrap, KeepRaw, KeyValuePairs, MaybeIndefArray, Nullable, OnlyRaw};
 
 // required for derive attrs to work
 use pallas_codec::minicbor;
@@ -566,6 +566,8 @@ where
 pub type DatumOption = PseudoDatumOption<PlutusData>;
 
 pub type MintedDatumOption<'b> = PseudoDatumOption<KeepRaw<'b, PlutusData>>;
+
+pub type RawDatumOption<'b> = PseudoDatumOption<OnlyRaw<'b, PlutusData>>;
 
 impl<'b> From<MintedDatumOption<'b>> for DatumOption {
     fn from(value: MintedDatumOption<'b>) -> Self {

@@ -20,7 +20,7 @@ use pallas_codec::minicbor;
 
 pub use crate::alonzo::VrfCert;
 
-use crate::babbage;
+use crate::babbage::{self, RawDatumOption};
 pub use crate::babbage::HeaderBody;
 
 pub use crate::babbage::OperationalCert;
@@ -770,6 +770,8 @@ pub type TransactionBody = PseudoTransactionBody<TransactionOutput>;
 
 pub type MintedTransactionBody<'a> = PseudoTransactionBody<MintedTransactionOutput<'a>>;
 
+pub type RawTransactionBody<'a> = PseudoTransactionBody<RawTransactionOutput<'a>>;
+
 impl<'a> From<MintedTransactionBody<'a>> for TransactionBody {
     fn from(value: MintedTransactionBody<'a>) -> Self {
         Self {
@@ -1246,6 +1248,8 @@ pub type TransactionOutput = PseudoTransactionOutput<PostAlonzoTransactionOutput
 pub type MintedTransactionOutput<'b> =
     PseudoTransactionOutput<MintedPostAlonzoTransactionOutput<'b>>;
 
+pub type RawTransactionOutput<'b> = PseudoTransactionOutput<RawPostAlonzoTransactionOutput<'b>>;
+
 impl<'b> From<MintedTransactionOutput<'b>> for TransactionOutput {
     fn from(value: MintedTransactionOutput<'b>) -> Self {
         match value {
@@ -1259,6 +1263,12 @@ pub type MintedPostAlonzoTransactionOutput<'b> = crate::babbage::PseudoPostAlonz
     Value,
     MintedDatumOption<'b>,
     MintedScriptRef<'b>,
+>;
+
+pub type RawPostAlonzoTransactionOutput<'b> = crate::babbage::PseudoPostAlonzoTransactionOutput<
+    Value,
+    RawDatumOption<'b>,
+    RawScriptRef<'b>,
 >;
 
 impl<'b> From<MintedPostAlonzoTransactionOutput<'b>> for PostAlonzoTransactionOutput {
@@ -1480,6 +1490,34 @@ pub struct MintedWitnessSet<'b> {
     pub plutus_v3_script: Option<NonEmptySet<PlutusV3Script>>,
 }
 
+#[derive(Encode, Decode, Debug, PartialEq, Clone)]
+#[cbor(map)]
+pub struct RawWitnessSet<'b> {
+    #[n(0)]
+    pub vkeywitness: Option<NonEmptySet<VKeyWitness>>,
+
+    #[n(1)]
+    pub native_script: Option<NonEmptySet<OnlyRaw<'b, NativeScript>>>,
+
+    #[n(2)]
+    pub bootstrap_witness: Option<NonEmptySet<BootstrapWitness>>,
+
+    #[n(3)]
+    pub plutus_v1_script: Option<NonEmptySet<PlutusV1Script>>,
+
+    #[b(4)]
+    pub plutus_data: Option<NonEmptySet<OnlyRaw<'b, PlutusData>>>,
+
+    #[n(5)]
+    pub redeemer: Option<OnlyRaw<'b, Redeemers>>,
+
+    #[n(6)]
+    pub plutus_v2_script: Option<NonEmptySet<PlutusV2Script>>,
+
+    #[n(7)]
+    pub plutus_v3_script: Option<NonEmptySet<PlutusV3Script>>,
+}
+
 impl<'b> From<MintedWitnessSet<'b>> for WitnessSet {
     fn from(x: MintedWitnessSet<'b>) -> Self {
         WitnessSet {
@@ -1535,6 +1573,8 @@ pub enum PseudoScript<T1> {
 pub type ScriptRef = PseudoScript<NativeScript>;
 
 pub type MintedScriptRef<'b> = PseudoScript<KeepRaw<'b, NativeScript>>;
+
+pub type RawScriptRef<'b> = PseudoScript<OnlyRaw<'b, NativeScript>>;
 
 impl<'b> From<MintedScriptRef<'b>> for ScriptRef {
     fn from(value: MintedScriptRef<'b>) -> Self {
@@ -1649,7 +1689,7 @@ pub type MintedBlock<'b> = PseudoBlock<
 pub type RawBlock<'b> = PseudoBlock<
     OnlyRaw<'b, Header>,
     OnlyRaw<'b, MintedTransactionBody<'b>>,
-    OnlyRaw<'b, MintedWitnessSet<'b>>,
+    OnlyRaw<'b, RawWitnessSet<'b>>,
     OnlyRaw<'b, AuxiliaryData>,
 >;
 
@@ -1715,7 +1755,7 @@ pub type MintedTx<'b> = PseudoTx<
 
 pub type RawTx<'b> = PseudoTx<
     OnlyRaw<'b, MintedTransactionBody<'b>>,
-    OnlyRaw<'b, MintedWitnessSet<'b>>,
+    OnlyRaw<'b, RawWitnessSet<'b>>,
     OnlyRaw<'b, AuxiliaryData>,
 >;
 
@@ -1730,29 +1770,12 @@ impl<'b> From<MintedTx<'b>> for Tx {
     }
 }
 
-impl<'b> TryFrom<RawTx<'b>> for MintedTx<'b> {
-    type Error = minicbor::decode::Error;
-
-    fn try_from(x: RawTx<'b>) -> Result<Self, Self::Error> {
-        Ok(MintedTx {
-            transaction_body: minicbor::decode(x.transaction_body.raw_cbor())?,
-            transaction_witness_set: minicbor::decode(x.transaction_witness_set.raw_cbor())?,
-            success: x.success,
-            auxiliary_data: match x.auxiliary_data {
-                Nullable::Some(x) => Nullable::Some(minicbor::decode(x.raw_cbor())?),
-                Nullable::Null => Nullable::Null,
-                Nullable::Undefined => Nullable::Undefined,
-            },
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use pallas_codec::minicbor;
 
-    use super::{MintedBlock, RawBlock, Block};
-    
+    use super::{Block, MintedBlock, RawBlock};
+
     // #[test]
     // fn block_isomorphic_decoding_encoding_test() {
     //     type BlockWrapper = (u16, Block);
@@ -1767,13 +1790,16 @@ mod tests {
 
     //     for (idx, block_str) in test_blocks.iter().enumerate() {
     //         println!("decoding test block {}", idx + 1);
-    //         let bytes = hex::decode(block_str).unwrap_or_else(|_| panic!("bad block file {idx}"));
+    //         let bytes = hex::decode(block_str).unwrap_or_else(|_| panic!("bad
+    // block file {idx}"));
 
     //         let block: BlockWrapper = minicbor::decode(bytes.as_slice())
-    //             .unwrap_or_else(|e| panic!("error decoding cbor for file {idx}: {e:?}"));
+    //             .unwrap_or_else(|e| panic!("error decoding cbor for file {idx}:
+    // {e:?}"));
 
     //         let bytes2 = minicbor::to_vec(block)
-    //             .unwrap_or_else(|e| panic!("error encoding block cbor for file {idx}: {e:?}"));
+    //             .unwrap_or_else(|e| panic!("error encoding block cbor for file
+    // {idx}: {e:?}"));
 
     //         assert_eq!(bytes, bytes2, "encoded bytes didn't match original");
     //         assert!(bytes.eq(&bytes2), "re-encoded bytes didn't match original");
