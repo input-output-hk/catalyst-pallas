@@ -774,30 +774,31 @@ mod tests {
     use super::{MintedBlock, RawBlock, TransactionOutput};
     use crate::Fragment;
 
+    const TEST_BLOCKS: [&'static str; 10] = [
+        include_str!("../../../test_data/babbage1.block"),
+        include_str!("../../../test_data/babbage2.block"),
+        include_str!("../../../test_data/babbage3.block"),
+        // peculiar block with single plutus cost model
+        include_str!("../../../test_data/babbage4.block"),
+        // peculiar block with i32 overlfow
+        include_str!("../../../test_data/babbage5.block"),
+        // peculiar block with map undef in plutus data
+        include_str!("../../../test_data/babbage6.block"),
+        // block with generic int in cbor
+        include_str!("../../../test_data/babbage7.block"),
+        // block with indef bytes for plutus data bignum
+        include_str!("../../../test_data/babbage8.block"),
+        // block with inline datum that fails hashes
+        include_str!("../../../test_data/babbage9.block"),
+        // block with pool margin numerator greater than i64::MAX
+        include_str!("../../../test_data/babbage10.block"),
+    ];
+
     #[test]
     fn minted_block_isomorphic_decoding_encoding_test() {
         type BlockWrapper<'b> = (u16, MintedBlock<'b>);
-        let test_blocks = [
-            include_str!("../../../test_data/babbage1.block"),
-            include_str!("../../../test_data/babbage2.block"),
-            include_str!("../../../test_data/babbage3.block"),
-            // peculiar block with single plutus cost model
-            include_str!("../../../test_data/babbage4.block"),
-            // peculiar block with i32 overlfow
-            include_str!("../../../test_data/babbage5.block"),
-            // peculiar block with map undef in plutus data
-            include_str!("../../../test_data/babbage6.block"),
-            // block with generic int in cbor
-            include_str!("../../../test_data/babbage7.block"),
-            // block with indef bytes for plutus data bignum
-            include_str!("../../../test_data/babbage8.block"),
-            // block with inline datum that fails hashes
-            include_str!("../../../test_data/babbage9.block"),
-            // block with pool margin numerator greater than i64::MAX
-            include_str!("../../../test_data/babbage10.block"),
-        ];
 
-        for (idx, block_str) in test_blocks.iter().enumerate() {
+        for (idx, block_str) in TEST_BLOCKS.iter().enumerate() {
             println!("decoding test block {}", idx + 1);
             let bytes = hex::decode(block_str).unwrap_or_else(|_| panic!("bad block file {idx}"));
 
@@ -814,27 +815,8 @@ mod tests {
     #[test]
     fn raw_block_isomorphic_decoding_encoding_test() {
         type BlockWrapper<'b> = (u16, RawBlock<'b>);
-        let test_blocks = [
-            include_str!("../../../test_data/babbage1.block"),
-            include_str!("../../../test_data/babbage2.block"),
-            include_str!("../../../test_data/babbage3.block"),
-            // peculiar block with single plutus cost model
-            include_str!("../../../test_data/babbage4.block"),
-            // peculiar block with i32 overlfow
-            include_str!("../../../test_data/babbage5.block"),
-            // peculiar block with map undef in plutus data
-            include_str!("../../../test_data/babbage6.block"),
-            // block with generic int in cbor
-            include_str!("../../../test_data/babbage7.block"),
-            // block with indef bytes for plutus data bignum
-            include_str!("../../../test_data/babbage8.block"),
-            // block with inline datum that fails hashes
-            include_str!("../../../test_data/babbage9.block"),
-            // block with pool margin numerator greater than i64::MAX
-            include_str!("../../../test_data/babbage10.block"),
-        ];
 
-        for (idx, block_str) in test_blocks.iter().enumerate() {
+        for (idx, block_str) in TEST_BLOCKS.iter().enumerate() {
             println!("decoding test block {}", idx + 1);
             let bytes = hex::decode(block_str).unwrap_or_else(|_| panic!("bad block file {idx}"));
 
