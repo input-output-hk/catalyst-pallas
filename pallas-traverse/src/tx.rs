@@ -11,8 +11,17 @@ use pallas_primitives::{
 
 use crate::{
     Era, Error, MultiEraCert, MultiEraInput, MultiEraMeta, MultiEraOutput, MultiEraPolicyAssets,
-    MultiEraSigners, MultiEraTx, MultiEraUpdate, MultiEraWithdrawals, OriginalHash,
+    MultiEraSigners, MultiEraUpdate, MultiEraWithdrawals, OriginalHash,
 };
+
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum MultiEraTx<'b> {
+    AlonzoCompatible(Box<Cow<'b, alonzo::MintedTx<'b>>>, Era),
+    Babbage(Box<Cow<'b, babbage::MintedTx<'b>>>),
+    Byron(Box<Cow<'b, byron::MintedTxPayload<'b>>>),
+    Conway(Box<Cow<'b, conway::MintedTx<'b>>>),
+}
 
 impl<'b> MultiEraTx<'b> {
     pub fn from_byron(tx: &'b byron::MintedTxPayload<'b>) -> Self {

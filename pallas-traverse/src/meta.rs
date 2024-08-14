@@ -1,6 +1,13 @@
 use pallas_primitives::alonzo;
 
-use crate::MultiEraMeta;
+#[derive(Debug, Clone, Default)]
+#[non_exhaustive]
+pub enum MultiEraMeta<'b> {
+    #[default]
+    Empty,
+    NotApplicable,
+    AlonzoCompatible(&'b alonzo::Metadata),
+}
 
 impl<'b> MultiEraMeta<'b> {
     pub fn as_alonzo(&self) -> Option<&alonzo::Metadata> {

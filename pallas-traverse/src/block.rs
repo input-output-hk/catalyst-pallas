@@ -4,11 +4,19 @@ use pallas_codec::minicbor;
 use pallas_crypto::hash::Hash;
 use pallas_primitives::{alonzo, babbage, byron, conway};
 
-use crate::{
-    probe, support, Era, Error, MultiEraBlock, MultiEraHeader, MultiEraTx, MultiEraUpdate,
-};
+use crate::{probe, support, Era, Error, MultiEraHeader, MultiEraTx, MultiEraUpdate};
 
 type BlockWrapper<T> = (u16, T);
+
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum MultiEraBlock<'b> {
+    EpochBoundary(Box<byron::MintedEbBlock<'b>>),
+    AlonzoCompatible(Box<alonzo::MintedBlock<'b>>, Era),
+    Babbage(Box<babbage::MintedBlock<'b>>),
+    Byron(Box<byron::MintedBlock<'b>>),
+    Conway(Box<conway::MintedBlock<'b>>),
+}
 
 impl<'b> MultiEraBlock<'b> {
     pub fn decode_epoch_boundary(cbor: &'b [u8]) -> Result<Self, Error> {

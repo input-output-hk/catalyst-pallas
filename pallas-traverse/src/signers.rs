@@ -1,7 +1,13 @@
 use pallas_crypto::hash::Hash;
 use pallas_primitives::alonzo;
 
-use crate::MultiEraSigners;
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum MultiEraSigners<'b> {
+    NotApplicable,
+    Empty,
+    AlonzoCompatible(&'b alonzo::RequiredSigners),
+}
 
 impl Default for MultiEraSigners<'_> {
     fn default() -> Self {
