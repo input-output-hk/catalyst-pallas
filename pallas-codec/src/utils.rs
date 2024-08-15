@@ -1097,7 +1097,7 @@ impl<'b, T> OnlyRaw<'b, T>
 where
     T: minicbor::Decode<'b, ()>,
 {
-    pub fn decode(self) -> Result<T, minicbor::decode::Error> {
+    pub fn decode(&self) -> Result<T, minicbor::decode::Error> {
         minicbor::decode(self.raw)
     }
 }

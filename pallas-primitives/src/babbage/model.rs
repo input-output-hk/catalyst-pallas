@@ -291,8 +291,6 @@ pub type TransactionBody = PseudoTransactionBody<TransactionOutput>;
 
 pub type MintedTransactionBody<'a> = PseudoTransactionBody<MintedTransactionOutput<'a>>;
 
-pub type RawTransactionBody<'a> = PseudoTransactionBody<RawTransactionOutput<'a>>;
-
 impl<'a> From<MintedTransactionBody<'a>> for TransactionBody {
     fn from(value: MintedTransactionBody<'a>) -> Self {
         Self {
@@ -363,8 +361,6 @@ pub type TransactionOutput = PseudoTransactionOutput<PostAlonzoTransactionOutput
 pub type MintedTransactionOutput<'b> =
     PseudoTransactionOutput<MintedPostAlonzoTransactionOutput<'b>>;
 
-pub type RawTransactionOutput<'b> = PseudoTransactionOutput<RawPostAlonzoTransactionOutput<'b>>;
-
 impl<'b> From<MintedTransactionOutput<'b>> for TransactionOutput {
     fn from(value: MintedTransactionOutput<'b>) -> Self {
         match value {
@@ -395,9 +391,6 @@ pub type PostAlonzoTransactionOutput =
 
 pub type MintedPostAlonzoTransactionOutput<'b> =
     PseudoPostAlonzoTransactionOutput<Value, MintedDatumOption<'b>, MintedScriptRef<'b>>;
-
-pub type RawPostAlonzoTransactionOutput<'b> =
-    PseudoPostAlonzoTransactionOutput<Value, RawDatumOption<'b>, RawScriptRef<'b>>;
 
 impl<'b> From<MintedPostAlonzoTransactionOutput<'b>> for PostAlonzoTransactionOutput {
     fn from(value: MintedPostAlonzoTransactionOutput<'b>) -> Self {
@@ -475,8 +468,6 @@ pub type WitnessSet = PseudoWitnessSet<NativeScript, PlutusData>;
 
 pub type MintedWitnessSet<'b> =
     PseudoWitnessSet<KeepRaw<'b, NativeScript>, KeepRaw<'b, PlutusData>>;
-
-pub type RawWitnessSet<'b> = PseudoWitnessSet<OnlyRaw<'b, NativeScript>, OnlyRaw<'b, PlutusData>>;
 
 impl<'b> From<MintedWitnessSet<'b>> for WitnessSet {
     fn from(x: MintedWitnessSet<'b>) -> Self {
@@ -562,8 +553,6 @@ pub type DatumOption = PseudoDatumOption<PlutusData>;
 
 pub type MintedDatumOption<'b> = PseudoDatumOption<KeepRaw<'b, PlutusData>>;
 
-pub type RawDatumOption<'b> = PseudoDatumOption<OnlyRaw<'b, PlutusData>>;
-
 impl<'b> From<MintedDatumOption<'b>> for DatumOption {
     fn from(value: MintedDatumOption<'b>) -> Self {
         match value {
@@ -585,8 +574,6 @@ pub enum PseudoScript<T1> {
 pub type ScriptRef = PseudoScript<NativeScript>;
 
 pub type MintedScriptRef<'b> = PseudoScript<KeepRaw<'b, NativeScript>>;
-
-pub type RawScriptRef<'b> = PseudoScript<OnlyRaw<'b, NativeScript>>;
 
 impl<'b> From<MintedScriptRef<'b>> for ScriptRef {
     fn from(value: MintedScriptRef<'b>) -> Self {
@@ -683,10 +670,10 @@ pub type MintedBlock<'b> = PseudoBlock<
     KeepRaw<'b, AuxiliaryData>,
 >;
 
-pub type RawBlock<'b> = PseudoBlock<
-    OnlyRaw<'b, Header>,
-    OnlyRaw<'b, RawTransactionBody<'b>>,
-    OnlyRaw<'b, RawWitnessSet<'b>>,
+pub type MintedBlockWithRawAuxiliary<'b> = PseudoBlock<
+    KeepRaw<'b, Header>,
+    KeepRaw<'b, MintedTransactionBody<'b>>,
+    KeepRaw<'b, MintedWitnessSet<'b>>,
     OnlyRaw<'b, AuxiliaryData>,
 >;
 
@@ -750,9 +737,9 @@ pub type MintedTx<'b> = PseudoTx<
     KeepRaw<'b, AuxiliaryData>,
 >;
 
-pub type RawTx<'b> = PseudoTx<
-    OnlyRaw<'b, RawTransactionBody<'b>>,
-    OnlyRaw<'b, RawWitnessSet<'b>>,
+pub type MintedTxWithRawAuxiliary<'b> = PseudoTx<
+    KeepRaw<'b, MintedTransactionBody<'b>>,
+    KeepRaw<'b, MintedWitnessSet<'b>>,
     OnlyRaw<'b, AuxiliaryData>,
 >;
 
@@ -771,7 +758,7 @@ impl<'b> From<MintedTx<'b>> for Tx {
 mod tests {
     use pallas_codec::minicbor;
 
-    use super::{MintedBlock, RawBlock, TransactionOutput};
+    use super::{MintedBlock, MintedBlockWithRawAuxiliary, TransactionOutput};
     use crate::Fragment;
 
     const TEST_BLOCKS: [&'static str; 10] = [
@@ -813,8 +800,8 @@ mod tests {
     }
 
     #[test]
-    fn raw_block_isomorphic_decoding_encoding_test() {
-        type BlockWrapper<'b> = (u16, RawBlock<'b>);
+    fn minted_block_with_raw_aux_isomorphic_decoding_encoding_test() {
+        type BlockWrapper<'b> = (u16, MintedBlockWithRawAuxiliary<'b>);
 
         for (idx, block_str) in TEST_BLOCKS.iter().enumerate() {
             println!("decoding test block {}", idx + 1);

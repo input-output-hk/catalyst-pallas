@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashSet, ops::Deref};
 
 use itertools::Itertools;
-use pallas_codec::{minicbor, utils::KeepRaw};
+use pallas_codec::{minicbor, utils::OnlyRaw};
 use pallas_crypto::hash::Hash;
 use pallas_primitives::{
     alonzo,
@@ -10,39 +10,39 @@ use pallas_primitives::{
 };
 
 use crate::{
-    Era, Error, MultiEraCert, MultiEraInput, MultiEraMeta, MultiEraOutput, MultiEraPolicyAssets,
-    MultiEraSigners, MultiEraUpdate, MultiEraWithdrawals, OriginalHash,
+    Era, Error, MultiEraCert, MultiEraInput, MultiEraOutput, MultiEraPolicyAssets, MultiEraSigners,
+    MultiEraUpdate, MultiEraWithdrawals, OriginalHash,
 };
 
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum MultiEraTx<'b> {
-    AlonzoCompatible(Box<Cow<'b, alonzo::MintedTx<'b>>>, Era),
-    Babbage(Box<Cow<'b, babbage::MintedTx<'b>>>),
+pub enum MultiEraTxWithRawAuxiliary<'b> {
+    AlonzoCompatible(Box<Cow<'b, alonzo::MintedTxWithRawAuxiliary<'b>>>, Era),
+    Babbage(Box<Cow<'b, babbage::MintedTxWithRawAuxiliary<'b>>>),
     Byron(Box<Cow<'b, byron::MintedTxPayload<'b>>>),
-    Conway(Box<Cow<'b, conway::MintedTx<'b>>>),
+    Conway(Box<Cow<'b, conway::MintedTxWithRawAuxiliary<'b>>>),
 }
 
-impl<'b> MultiEraTx<'b> {
+impl<'b> MultiEraTxWithRawAuxiliary<'b> {
     pub fn from_byron(tx: &'b byron::MintedTxPayload<'b>) -> Self {
         Self::Byron(Box::new(Cow::Borrowed(tx)))
     }
 
-    pub fn from_alonzo_compatible(tx: &'b alonzo::MintedTx<'b>, era: Era) -> Self {
+    pub fn from_alonzo_compatible(tx: &'b alonzo::MintedTxWithRawAuxiliary<'b>, era: Era) -> Self {
         Self::AlonzoCompatible(Box::new(Cow::Borrowed(tx)), era)
     }
 
-    pub fn from_babbage(tx: &'b babbage::MintedTx<'b>) -> Self {
+    pub fn from_babbage(tx: &'b babbage::MintedTxWithRawAuxiliary<'b>) -> Self {
         Self::Babbage(Box::new(Cow::Borrowed(tx)))
     }
 
     pub fn encode(&self) -> Vec<u8> {
         // to_vec is infallible
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => minicbor::to_vec(x).unwrap(),
-            MultiEraTx::Babbage(x) => minicbor::to_vec(x).unwrap(),
-            MultiEraTx::Byron(x) => minicbor::to_vec(x).unwrap(),
-            MultiEraTx::Conway(x) => minicbor::to_vec(x).unwrap(),
+            Self::AlonzoCompatible(x, _) => minicbor::to_vec(x).unwrap(),
+            Self::Babbage(x) => minicbor::to_vec(x).unwrap(),
+            Self::Byron(x) => minicbor::to_vec(x).unwrap(),
+            Self::Conway(x) => minicbor::to_vec(x).unwrap(),
         }
     }
 
@@ -51,22 +51,22 @@ impl<'b> MultiEraTx<'b> {
             Era::Byron => {
                 let tx = minicbor::decode(cbor)?;
                 let tx = Box::new(Cow::Owned(tx));
-                Ok(MultiEraTx::Byron(tx))
+                Ok(Self::Byron(tx))
             }
             Era::Shelley | Era::Allegra | Era::Mary | Era::Alonzo => {
                 let tx = minicbor::decode(cbor)?;
                 let tx = Box::new(Cow::Owned(tx));
-                Ok(MultiEraTx::AlonzoCompatible(tx, era))
+                Ok(Self::AlonzoCompatible(tx, era))
             }
             Era::Babbage => {
                 let tx = minicbor::decode(cbor)?;
                 let tx = Box::new(Cow::Owned(tx));
-                Ok(MultiEraTx::Babbage(tx))
+                Ok(Self::Babbage(tx))
             }
             Era::Conway => {
                 let tx = minicbor::decode(cbor)?;
                 let tx = Box::new(Cow::Owned(tx));
-                Ok(MultiEraTx::Conway(tx))
+                Ok(Self::Conway(tx))
             }
         }
     }
@@ -80,23 +80,23 @@ impl<'b> MultiEraTx<'b> {
     /// decode using Babbage first even if Conway is newer.
     pub fn decode(cbor: &'b [u8]) -> Result<Self, Error> {
         if let Ok(tx) = minicbor::decode(cbor) {
-            return Ok(MultiEraTx::Babbage(Box::new(Cow::Owned(tx))));
+            return Ok(Self::Babbage(Box::new(Cow::Owned(tx))));
         }
 
         if let Ok(tx) = minicbor::decode(cbor) {
-            return Ok(MultiEraTx::Conway(Box::new(Cow::Owned(tx))));
+            return Ok(Self::Conway(Box::new(Cow::Owned(tx))));
         }
 
         if let Ok(tx) = minicbor::decode(cbor) {
             // Shelley/Allegra/Mary/Alonzo will all decode to Alonzo
-            return Ok(MultiEraTx::AlonzoCompatible(
+            return Ok(Self::AlonzoCompatible(
                 Box::new(Cow::Owned(tx)),
                 Era::Alonzo,
             ));
         }
 
         if let Ok(tx) = minicbor::decode(cbor) {
-            Ok(MultiEraTx::Byron(Box::new(Cow::Owned(tx))))
+            Ok(Self::Byron(Box::new(Cow::Owned(tx))))
         } else {
             Err(Error::unknown_cbor(cbor))
         }
@@ -104,43 +104,43 @@ impl<'b> MultiEraTx<'b> {
 
     pub fn era(&self) -> Era {
         match self {
-            MultiEraTx::AlonzoCompatible(_, era) => *era,
-            MultiEraTx::Babbage(_) => Era::Babbage,
-            MultiEraTx::Byron(_) => Era::Byron,
-            MultiEraTx::Conway(_) => Era::Conway,
+            Self::AlonzoCompatible(_, era) => *era,
+            Self::Babbage(_) => Era::Babbage,
+            Self::Byron(_) => Era::Byron,
+            Self::Conway(_) => Era::Conway,
         }
     }
 
     pub fn hash(&self) -> Hash<32> {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => x.transaction_body.original_hash(),
-            MultiEraTx::Babbage(x) => x.transaction_body.original_hash(),
-            MultiEraTx::Byron(x) => x.transaction.original_hash(),
-            MultiEraTx::Conway(x) => x.transaction_body.original_hash(),
+            Self::AlonzoCompatible(x, _) => x.transaction_body.original_hash(),
+            Self::Babbage(x) => x.transaction_body.original_hash(),
+            Self::Byron(x) => x.transaction.original_hash(),
+            Self::Conway(x) => x.transaction_body.original_hash(),
         }
     }
 
     pub fn outputs(&self) -> Vec<MultiEraOutput> {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => x
+            Self::AlonzoCompatible(x, _) => x
                 .transaction_body
                 .outputs
                 .iter()
                 .map(|x| MultiEraOutput::from_alonzo_compatible(x, self.era()))
                 .collect(),
-            MultiEraTx::Babbage(x) => x
+            Self::Babbage(x) => x
                 .transaction_body
                 .outputs
                 .iter()
                 .map(MultiEraOutput::from_babbage)
                 .collect(),
-            MultiEraTx::Byron(x) => x
+            Self::Byron(x) => x
                 .transaction
                 .outputs
                 .iter()
                 .map(MultiEraOutput::from_byron)
                 .collect(),
-            MultiEraTx::Conway(x) => x
+            Self::Conway(x) => x
                 .transaction_body
                 .outputs
                 .iter()
@@ -151,22 +151,22 @@ impl<'b> MultiEraTx<'b> {
 
     pub fn output_at(&self, index: usize) -> Option<MultiEraOutput> {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => x
+            Self::AlonzoCompatible(x, _) => x
                 .transaction_body
                 .outputs
                 .get(index)
                 .map(|x| MultiEraOutput::from_alonzo_compatible(x, self.era())),
-            MultiEraTx::Babbage(x) => x
+            Self::Babbage(x) => x
                 .transaction_body
                 .outputs
                 .get(index)
                 .map(MultiEraOutput::from_babbage),
-            MultiEraTx::Byron(x) => x
+            Self::Byron(x) => x
                 .transaction
                 .outputs
                 .get(index)
                 .map(MultiEraOutput::from_byron),
-            MultiEraTx::Conway(x) => x
+            Self::Conway(x) => x
                 .transaction_body
                 .outputs
                 .get(index)
@@ -179,25 +179,25 @@ impl<'b> MultiEraTx<'b> {
     /// NOTE: It is possible for this to return duplicates before some point in the chain history. See https://github.com/input-output-hk/cardano-ledger/commit/a342b74f5db3d3a75eae3e2abe358a169701b1e7
     pub fn inputs(&self) -> Vec<MultiEraInput> {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => x
+            Self::AlonzoCompatible(x, _) => x
                 .transaction_body
                 .inputs
                 .iter()
                 .map(MultiEraInput::from_alonzo_compatible)
                 .collect(),
-            MultiEraTx::Babbage(x) => x
+            Self::Babbage(x) => x
                 .transaction_body
                 .inputs
                 .iter()
                 .map(MultiEraInput::from_alonzo_compatible)
                 .collect(),
-            MultiEraTx::Byron(x) => x
+            Self::Byron(x) => x
                 .transaction
                 .inputs
                 .iter()
                 .map(MultiEraInput::from_byron)
                 .collect(),
-            MultiEraTx::Conway(x) => x
+            Self::Conway(x) => x
                 .transaction_body
                 .inputs
                 .iter()
@@ -251,14 +251,14 @@ impl<'b> MultiEraTx<'b> {
     /// https://github.com/input-output-hk/cardano-ledger/commit/a342b74f5db3d3a75eae3e2abe358a169701b1e7
     pub fn reference_inputs(&self) -> Vec<MultiEraInput> {
         match self {
-            MultiEraTx::Conway(x) => x
+            Self::Conway(x) => x
                 .transaction_body
                 .reference_inputs
                 .iter()
                 .flatten()
                 .map(MultiEraInput::from_alonzo_compatible)
                 .collect(),
-            MultiEraTx::Babbage(x) => x
+            Self::Babbage(x) => x
                 .transaction_body
                 .reference_inputs
                 .iter()
@@ -271,22 +271,22 @@ impl<'b> MultiEraTx<'b> {
 
     pub fn certs(&self) -> Vec<MultiEraCert> {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => x
+            Self::AlonzoCompatible(x, _) => x
                 .transaction_body
                 .certificates
                 .iter()
                 .flat_map(|c| c.iter())
                 .map(|c| MultiEraCert::AlonzoCompatible(Box::new(Cow::Borrowed(c))))
                 .collect(),
-            MultiEraTx::Babbage(x) => x
+            Self::Babbage(x) => x
                 .transaction_body
                 .certificates
                 .iter()
                 .flat_map(|c| c.iter())
                 .map(|c| MultiEraCert::AlonzoCompatible(Box::new(Cow::Borrowed(c))))
                 .collect(),
-            MultiEraTx::Byron(_) => vec![],
-            MultiEraTx::Conway(x) => x
+            Self::Byron(_) => vec![],
+            Self::Conway(x) => x
                 .transaction_body
                 .certificates
                 .iter()
@@ -298,39 +298,39 @@ impl<'b> MultiEraTx<'b> {
 
     pub fn update(&self) -> Option<MultiEraUpdate> {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => x
+            Self::AlonzoCompatible(x, _) => x
                 .transaction_body
                 .update
                 .as_ref()
                 .map(MultiEraUpdate::from_alonzo_compatible),
-            MultiEraTx::Babbage(x) => x
+            Self::Babbage(x) => x
                 .transaction_body
                 .update
                 .as_ref()
                 .map(MultiEraUpdate::from_babbage),
-            MultiEraTx::Byron(_) => None,
-            MultiEraTx::Conway(_) => None,
+            Self::Byron(_) => None,
+            Self::Conway(_) => None,
         }
     }
 
     pub fn mints(&self) -> Vec<MultiEraPolicyAssets> {
         match self {
-            MultiEraTx::Byron(_) => vec![],
-            MultiEraTx::AlonzoCompatible(x, _) => x
+            Self::Byron(_) => vec![],
+            Self::AlonzoCompatible(x, _) => x
                 .transaction_body
                 .mint
                 .iter()
                 .flat_map(|x| x.iter())
                 .map(|(k, v)| MultiEraPolicyAssets::AlonzoCompatibleMint(k, v))
                 .collect(),
-            MultiEraTx::Babbage(x) => x
+            Self::Babbage(x) => x
                 .transaction_body
                 .mint
                 .iter()
                 .flat_map(|x| x.iter())
                 .map(|(k, v)| MultiEraPolicyAssets::AlonzoCompatibleMint(k, v))
                 .collect(),
-            MultiEraTx::Conway(x) => x
+            Self::Conway(x) => x
                 .transaction_body
                 .mint
                 .iter()
@@ -346,22 +346,22 @@ impl<'b> MultiEraTx<'b> {
     /// https://github.com/input-output-hk/cardano-ledger/commit/a342b74f5db3d3a75eae3e2abe358a169701b1e7
     pub fn collateral(&self) -> Vec<MultiEraInput> {
         match self {
-            MultiEraTx::Byron(_) => vec![],
-            MultiEraTx::AlonzoCompatible(x, _) => x
+            Self::Byron(_) => vec![],
+            Self::AlonzoCompatible(x, _) => x
                 .transaction_body
                 .collateral
                 .iter()
                 .flat_map(|x| x.iter())
                 .map(MultiEraInput::from_alonzo_compatible)
                 .collect(),
-            MultiEraTx::Babbage(x) => x
+            Self::Babbage(x) => x
                 .transaction_body
                 .collateral
                 .iter()
                 .flat_map(|x| x.iter())
                 .map(MultiEraInput::from_alonzo_compatible)
                 .collect(),
-            MultiEraTx::Conway(x) => x
+            Self::Conway(x) => x
                 .transaction_body
                 .collateral
                 .iter()
@@ -373,12 +373,12 @@ impl<'b> MultiEraTx<'b> {
 
     pub fn collateral_return(&self) -> Option<MultiEraOutput> {
         match self {
-            MultiEraTx::Babbage(x) => x
+            Self::Babbage(x) => x
                 .transaction_body
                 .collateral_return
                 .as_ref()
                 .map(MultiEraOutput::from_babbage),
-            MultiEraTx::Conway(x) => x
+            Self::Conway(x) => x
                 .transaction_body
                 .collateral_return
                 .as_ref()
@@ -389,8 +389,8 @@ impl<'b> MultiEraTx<'b> {
 
     pub fn total_collateral(&self) -> Option<u64> {
         match self {
-            MultiEraTx::Babbage(x) => x.transaction_body.total_collateral,
-            MultiEraTx::Conway(x) => x.transaction_body.total_collateral,
+            Self::Babbage(x) => x.transaction_body.total_collateral,
+            Self::Conway(x) => x.transaction_body.total_collateral,
             _ => None,
         }
     }
@@ -468,16 +468,16 @@ impl<'b> MultiEraTx<'b> {
 
     pub fn withdrawals(&self) -> MultiEraWithdrawals {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => match &x.transaction_body.withdrawals {
+            Self::AlonzoCompatible(x, _) => match &x.transaction_body.withdrawals {
                 Some(x) => MultiEraWithdrawals::AlonzoCompatible(x),
                 None => MultiEraWithdrawals::Empty,
             },
-            MultiEraTx::Babbage(x) => match &x.transaction_body.withdrawals {
+            Self::Babbage(x) => match &x.transaction_body.withdrawals {
                 Some(x) => MultiEraWithdrawals::AlonzoCompatible(x),
                 None => MultiEraWithdrawals::Empty,
             },
-            MultiEraTx::Byron(_) => MultiEraWithdrawals::NotApplicable,
-            MultiEraTx::Conway(x) => match &x.transaction_body.withdrawals {
+            Self::Byron(_) => MultiEraWithdrawals::NotApplicable,
+            Self::Conway(x) => match &x.transaction_body.withdrawals {
                 Some(x) => MultiEraWithdrawals::Conway(x),
                 None => MultiEraWithdrawals::Empty,
             },
@@ -486,19 +486,19 @@ impl<'b> MultiEraTx<'b> {
 
     pub fn fee(&self) -> Option<u64> {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => Some(x.transaction_body.fee),
-            MultiEraTx::Babbage(x) => Some(x.transaction_body.fee),
-            MultiEraTx::Byron(_) => None,
-            MultiEraTx::Conway(x) => Some(x.transaction_body.fee),
+            Self::AlonzoCompatible(x, _) => Some(x.transaction_body.fee),
+            Self::Babbage(x) => Some(x.transaction_body.fee),
+            Self::Byron(_) => None,
+            Self::Conway(x) => Some(x.transaction_body.fee),
         }
     }
 
     pub fn ttl(&self) -> Option<u64> {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => x.transaction_body.ttl,
-            MultiEraTx::Babbage(x) => x.transaction_body.ttl,
-            MultiEraTx::Byron(_) => None,
-            MultiEraTx::Conway(x) => x.transaction_body.ttl,
+            Self::AlonzoCompatible(x, _) => x.transaction_body.ttl,
+            Self::Babbage(x) => x.transaction_body.ttl,
+            Self::Byron(_) => None,
+            Self::Conway(x) => x.transaction_body.ttl,
         }
     }
 
@@ -510,27 +510,27 @@ impl<'b> MultiEraTx<'b> {
     #[cfg(feature = "unstable")]
     pub fn fee_or_compute(&self) -> u64 {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => x.transaction_body.fee,
-            MultiEraTx::Babbage(x) => x.transaction_body.fee,
-            MultiEraTx::Byron(x) => crate::fees::compute_byron_fee(x, None),
-            MultiEraTx::Conway(x) => x.transaction_body.fee,
+            Self::AlonzoCompatible(x, _) => x.transaction_body.fee,
+            Self::Babbage(x) => x.transaction_body.fee,
+            Self::Byron(x) => crate::fees::compute_byron_fee(x, None),
+            Self::Conway(x) => x.transaction_body.fee,
         }
     }
 
-    pub(crate) fn aux_data(&self) -> Option<&KeepRaw<'_, alonzo::AuxiliaryData>> {
+    pub fn aux_data(&self) -> Option<&OnlyRaw<'_, alonzo::AuxiliaryData>> {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => match &x.auxiliary_data {
+            Self::AlonzoCompatible(x, _) => match &x.auxiliary_data {
                 pallas_codec::utils::Nullable::Some(x) => Some(x),
                 pallas_codec::utils::Nullable::Null => None,
                 pallas_codec::utils::Nullable::Undefined => None,
             },
-            MultiEraTx::Babbage(x) => match &x.auxiliary_data {
+            Self::Babbage(x) => match &x.auxiliary_data {
                 pallas_codec::utils::Nullable::Some(x) => Some(x),
                 pallas_codec::utils::Nullable::Null => None,
                 pallas_codec::utils::Nullable::Undefined => None,
             },
-            MultiEraTx::Byron(_) => None,
-            MultiEraTx::Conway(x) => match &x.auxiliary_data {
+            Self::Byron(_) => None,
+            Self::Conway(x) => match &x.auxiliary_data {
                 pallas_codec::utils::Nullable::Some(x) => Some(x),
                 pallas_codec::utils::Nullable::Null => None,
                 pallas_codec::utils::Nullable::Undefined => None,
@@ -538,39 +538,39 @@ impl<'b> MultiEraTx<'b> {
         }
     }
 
-    pub fn metadata(&self) -> MultiEraMeta {
-        match self.aux_data() {
-            Some(x) => match x.deref() {
-                alonzo::AuxiliaryData::Shelley(x) => MultiEraMeta::AlonzoCompatible(x),
-                alonzo::AuxiliaryData::ShelleyMa(x) => {
-                    MultiEraMeta::AlonzoCompatible(&x.transaction_metadata)
-                }
-                alonzo::AuxiliaryData::PostAlonzo(x) => x
-                    .metadata
-                    .as_ref()
-                    .map(MultiEraMeta::AlonzoCompatible)
-                    .unwrap_or_default(),
-            },
-            None => MultiEraMeta::Empty,
-        }
-    }
+    // pub fn metadata(&self) -> Result<MultiEraMeta, Error> {
+    //     match self.aux_data() {
+    //         Some(x) => match x.deref().decode(). {
+    //             alonzo::AuxiliaryData::Shelley(x) =>
+    // MultiEraMeta::AlonzoCompatible(x),
+    // alonzo::AuxiliaryData::ShelleyMa(x) => {
+    // MultiEraMeta::AlonzoCompatible(&x.transaction_metadata)             }
+    //             alonzo::AuxiliaryData::PostAlonzo(x) => x
+    //                 .metadata
+    //                 .as_ref()
+    //                 .map(MultiEraMeta::AlonzoCompatible)
+    //                 .unwrap_or_default(),
+    //         },
+    //         None => MultiEraMeta::Empty,
+    //     }
+    // }
 
     pub fn required_signers(&self) -> MultiEraSigners {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => x
+            Self::AlonzoCompatible(x, _) => x
                 .transaction_body
                 .required_signers
                 .as_ref()
                 .map(MultiEraSigners::AlonzoCompatible)
                 .unwrap_or_default(),
-            MultiEraTx::Babbage(x) => x
+            Self::Babbage(x) => x
                 .transaction_body
                 .required_signers
                 .as_ref()
                 .map(MultiEraSigners::AlonzoCompatible)
                 .unwrap_or_default(),
-            MultiEraTx::Byron(_) => MultiEraSigners::NotApplicable,
-            MultiEraTx::Conway(x) => x
+            Self::Byron(_) => MultiEraSigners::NotApplicable,
+            Self::Conway(x) => x
                 .transaction_body
                 .required_signers
                 .as_ref()
@@ -581,55 +581,55 @@ impl<'b> MultiEraTx<'b> {
 
     pub fn validity_start(&self) -> Option<u64> {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => x.transaction_body.validity_interval_start,
-            MultiEraTx::Babbage(x) => x.transaction_body.validity_interval_start,
-            MultiEraTx::Byron(_) => None,
-            MultiEraTx::Conway(x) => x.transaction_body.validity_interval_start,
+            Self::AlonzoCompatible(x, _) => x.transaction_body.validity_interval_start,
+            Self::Babbage(x) => x.transaction_body.validity_interval_start,
+            Self::Byron(_) => None,
+            Self::Conway(x) => x.transaction_body.validity_interval_start,
         }
     }
 
     pub fn network_id(&self) -> Option<NetworkId> {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => x.transaction_body.network_id,
-            MultiEraTx::Babbage(x) => x.transaction_body.network_id,
-            MultiEraTx::Byron(_) => None,
-            MultiEraTx::Conway(x) => x.transaction_body.network_id,
+            Self::AlonzoCompatible(x, _) => x.transaction_body.network_id,
+            Self::Babbage(x) => x.transaction_body.network_id,
+            Self::Byron(_) => None,
+            Self::Conway(x) => x.transaction_body.network_id,
         }
     }
 
     pub fn is_valid(&self) -> bool {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => x.success,
-            MultiEraTx::Babbage(x) => x.success,
-            MultiEraTx::Byron(_) => true,
-            MultiEraTx::Conway(x) => x.success,
+            Self::AlonzoCompatible(x, _) => x.success,
+            Self::Babbage(x) => x.success,
+            Self::Byron(_) => true,
+            Self::Conway(x) => x.success,
         }
     }
 
-    pub fn as_babbage(&self) -> Option<&babbage::MintedTx> {
+    pub fn as_babbage(&self) -> Option<&babbage::MintedTxWithRawAuxiliary> {
         match self {
-            MultiEraTx::Babbage(x) => Some(x),
+            Self::Babbage(x) => Some(x),
             _ => None,
         }
     }
 
-    pub fn as_alonzo(&self) -> Option<&alonzo::MintedTx> {
+    pub fn as_alonzo(&self) -> Option<&alonzo::MintedTxWithRawAuxiliary> {
         match self {
-            MultiEraTx::AlonzoCompatible(x, _) => Some(x),
+            Self::AlonzoCompatible(x, _) => Some(x),
             _ => None,
         }
     }
 
     pub fn as_byron(&self) -> Option<&byron::MintedTxPayload> {
         match self {
-            MultiEraTx::Byron(x) => Some(x),
+            Self::Byron(x) => Some(x),
             _ => None,
         }
     }
 
-    pub fn as_conway(&self) -> Option<&conway::MintedTx> {
+    pub fn as_conway(&self) -> Option<&conway::MintedTxWithRawAuxiliary> {
         match self {
-            MultiEraTx::Conway(x) => Some(x),
+            Self::Conway(x) => Some(x),
             _ => None,
         }
     }

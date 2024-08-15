@@ -1304,8 +1304,6 @@ pub type WitnessSet = PseudoWitnessSet<NativeScript, PlutusData>;
 pub type MintedWitnessSet<'b> =
     PseudoWitnessSet<KeepRaw<'b, NativeScript>, KeepRaw<'b, PlutusData>>;
 
-pub type RawWitnessSet<'b> = PseudoWitnessSet<OnlyRaw<'b, NativeScript>, OnlyRaw<'b, PlutusData>>;
-
 impl<'b> From<MintedWitnessSet<'b>> for WitnessSet {
     fn from(x: MintedWitnessSet<'b>) -> Self {
         WitnessSet {
@@ -1505,10 +1503,10 @@ pub type MintedBlock<'b> = PseudoBlock<
     KeepRaw<'b, AuxiliaryData>,
 >;
 
-pub type RawBlock<'b> = PseudoBlock<
-    OnlyRaw<'b, Header>,
-    OnlyRaw<'b, TransactionBody>,
-    OnlyRaw<'b, RawWitnessSet<'b>>,
+pub type MintedBlockWithRawAuxiliary<'b> = PseudoBlock<
+    KeepRaw<'b, Header>,
+    KeepRaw<'b, TransactionBody>,
+    KeepRaw<'b, MintedWitnessSet<'b>>,
     OnlyRaw<'b, AuxiliaryData>,
 >;
 
@@ -1572,9 +1570,9 @@ pub type MintedTx<'b> = PseudoTx<
     KeepRaw<'b, AuxiliaryData>,
 >;
 
-pub type RawTx<'b> = PseudoTx<
-    OnlyRaw<'b, TransactionBody>,
-    OnlyRaw<'b, RawWitnessSet<'b>>,
+pub type MintedTxWithRawAuxiliary<'b> = PseudoTx<
+    KeepRaw<'b, TransactionBody>,
+    KeepRaw<'b, MintedWitnessSet<'b>>,
     OnlyRaw<'b, AuxiliaryData>,
 >;
 
@@ -1584,7 +1582,7 @@ mod tests {
 
     use crate::{alonzo::PlutusData, Fragment};
 
-    use super::{Header, MintedBlock, RawBlock};
+    use super::{Header, MintedBlock, MintedBlockWithRawAuxiliary};
 
     const TEST_BLOCKS: [&'static str; 25] = [
         include_str!("../../../test_data/alonzo1.block"),
@@ -1651,8 +1649,8 @@ mod tests {
     }
 
     #[test]
-    fn raw_block_isomorphic_decoding_encoding_test() {
-        type BlockWrapper<'b> = (u16, RawBlock<'b>);
+    fn minted_block_with_raw_aux_isomorphic_decoding_encoding_test() {
+        type BlockWrapper<'b> = (u16, MintedBlockWithRawAuxiliary<'b>);
 
         for (idx, block_str) in TEST_BLOCKS.iter().enumerate() {
             println!("decoding test block {}", idx + 1);

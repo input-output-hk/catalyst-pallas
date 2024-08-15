@@ -6,7 +6,7 @@ use pallas_codec::minicbor::{bytes::ByteVec, Decode, Encode};
 use pallas_crypto::hash::Hash;
 
 use pallas_codec::utils::{
-    CborWrap, EmptyMap, KeepRaw, KeyValuePairs, MaybeIndefArray, OnlyRaw, TagWrap, ZeroOrOneArray,
+    CborWrap, EmptyMap, KeepRaw, KeyValuePairs, MaybeIndefArray, TagWrap, ZeroOrOneArray,
 };
 
 // required for derive attrs to work
@@ -714,8 +714,6 @@ pub type TxPayload = PseudoTxPayload<Tx, Witnesses>;
 
 pub type MintedTxPayload<'b> = PseudoTxPayload<KeepRaw<'b, Tx>, KeepRaw<'b, Witnesses>>;
 
-pub type RawTxPayload<'b> = PseudoTxPayload<OnlyRaw<'b, Tx>, OnlyRaw<'b, Witnesses>>;
-
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct PseudoBlockBody<T1>
 where
@@ -737,8 +735,6 @@ where
 pub type BlockBody = PseudoBlockBody<TxPayload>;
 
 pub type MintedBlockBody<'b> = PseudoBlockBody<MintedTxPayload<'b>>;
-
-pub type RawBlockBody<'b> = PseudoBlockBody<RawTxPayload<'b>>;
 
 // Epoch Boundary Blocks
 
@@ -789,8 +785,6 @@ pub type Block = PseudoBlock<BlockHead, BlockBody>;
 
 pub type MintedBlock<'b> = PseudoBlock<KeepRaw<'b, BlockHead>, MintedBlockBody<'b>>;
 
-pub type RawBlock<'b> = PseudoBlock<OnlyRaw<'b, BlockHead>, RawBlockBody<'b>>;
-
 #[derive(Encode, Decode, Debug, Clone)]
 pub struct PseudoEbBlock<T1>
 where
@@ -810,11 +804,9 @@ pub type EbBlock = PseudoEbBlock<EbbHead>;
 
 pub type MintedEbBlock<'b> = PseudoEbBlock<KeepRaw<'b, EbbHead>>;
 
-pub type RawEbBlock<'b> = PseudoEbBlock<OnlyRaw<'b, EbbHead>>;
-
 #[cfg(test)]
 mod tests {
-    use super::{BlockHead, EbBlock, MintedBlock, MintedEbBlock, RawBlock, RawEbBlock};
+    use super::{BlockHead, EbBlock, MintedBlock, MintedEbBlock};
     use pallas_codec::minicbor::{self, to_vec};
 
     const ED_TEST_BLOCKS: [&'static str; 1] = [include_str!("../../../test_data/genesis.block")];
@@ -867,44 +859,8 @@ mod tests {
     }
 
     #[test]
-    fn boundary_raw_block_isomorphic_decoding_encoding() {
-        type BlockWrapper<'b> = (u16, RawEbBlock<'b>);
-
-        for (idx, block_str) in ED_TEST_BLOCKS.iter().enumerate() {
-            println!("decoding test block {}", idx + 1);
-            let bytes = hex::decode(block_str).unwrap_or_else(|_| panic!("bad block file {idx}"));
-
-            let block: BlockWrapper = minicbor::decode(&bytes[..])
-                .unwrap_or_else(|_| panic!("error decoding cbor for file {idx}"));
-
-            let bytes2 = to_vec(block)
-                .unwrap_or_else(|_| panic!("error encoding block cbor for file {idx}"));
-
-            assert_eq!(hex::encode(bytes), hex::encode(bytes2));
-        }
-    }
-
-    #[test]
     fn main_minted_block_isomorphic_decoding_encoding() {
         type BlockWrapper<'b> = (u16, MintedBlock<'b>);
-
-        for (idx, block_str) in TEST_BLOCKS.iter().enumerate() {
-            println!("decoding test block {}", idx + 1);
-            let bytes = hex::decode(block_str).unwrap_or_else(|_| panic!("bad block file {idx}"));
-
-            let block: BlockWrapper = minicbor::decode(&bytes[..])
-                .unwrap_or_else(|_| panic!("error decoding cbor for file {idx}"));
-
-            let bytes2 = to_vec(block)
-                .unwrap_or_else(|_| panic!("error encoding block cbor for file {idx}"));
-
-            assert_eq!(hex::encode(bytes), hex::encode(bytes2));
-        }
-    }
-
-    #[test]
-    fn main_raw_block_isomorphic_decoding_encoding() {
-        type BlockWrapper<'b> = (u16, RawBlock<'b>);
 
         for (idx, block_str) in TEST_BLOCKS.iter().enumerate() {
             println!("decoding test block {}", idx + 1);

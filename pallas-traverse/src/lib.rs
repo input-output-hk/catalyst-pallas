@@ -28,16 +28,16 @@ mod withdrawals;
 mod witnesses;
 
 pub use assets::{MultiEraAsset, MultiEraPolicyAssets};
-pub use block::MultiEraBlock;
+pub use block::{MultiEraBlock, MultiEraBlockWithRawAuxiliary};
 pub use cert::MultiEraCert;
 pub use era::{Era, Feature};
 pub use header::MultiEraHeader;
-pub use input::{OutputRef, MultiEraInput};
+pub use input::{MultiEraInput, OutputRef};
 pub use meta::MultiEraMeta;
 pub use output::MultiEraOutput;
 pub use redeemers::MultiEraRedeemer;
 pub use signers::MultiEraSigners;
-pub use tx::MultiEraTx;
+pub use tx::{MultiEraTx, MultiEraTxWithRawAuxiliary};
 pub use update::MultiEraUpdate;
 pub use withdrawals::MultiEraWithdrawals;
 

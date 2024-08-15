@@ -21,7 +21,7 @@ use pallas_codec::minicbor;
 pub use crate::alonzo::VrfCert;
 
 pub use crate::babbage::HeaderBody;
-use crate::babbage::{self, RawDatumOption};
+use crate::babbage::{self};
 
 pub use crate::babbage::OperationalCert;
 
@@ -770,8 +770,6 @@ pub type TransactionBody = PseudoTransactionBody<TransactionOutput>;
 
 pub type MintedTransactionBody<'a> = PseudoTransactionBody<MintedTransactionOutput<'a>>;
 
-pub type RawTransactionBody<'a> = PseudoTransactionBody<RawTransactionOutput<'a>>;
-
 impl<'a> From<MintedTransactionBody<'a>> for TransactionBody {
     fn from(value: MintedTransactionBody<'a>) -> Self {
         Self {
@@ -1245,8 +1243,6 @@ pub type TransactionOutput = PseudoTransactionOutput<PostAlonzoTransactionOutput
 pub type MintedTransactionOutput<'b> =
     PseudoTransactionOutput<MintedPostAlonzoTransactionOutput<'b>>;
 
-pub type RawTransactionOutput<'b> = PseudoTransactionOutput<RawPostAlonzoTransactionOutput<'b>>;
-
 impl<'b> From<MintedTransactionOutput<'b>> for TransactionOutput {
     fn from(value: MintedTransactionOutput<'b>) -> Self {
         match value {
@@ -1264,9 +1260,6 @@ pub type MintedPostAlonzoTransactionOutput<'b> = crate::babbage::PseudoPostAlonz
     MintedDatumOption<'b>,
     MintedScriptRef<'b>,
 >;
-
-pub type RawPostAlonzoTransactionOutput<'b> =
-    crate::babbage::PseudoPostAlonzoTransactionOutput<Value, RawDatumOption<'b>, RawScriptRef<'b>>;
 
 impl<'b> From<MintedPostAlonzoTransactionOutput<'b>> for PostAlonzoTransactionOutput {
     fn from(value: MintedPostAlonzoTransactionOutput<'b>) -> Self {
@@ -1469,9 +1462,6 @@ pub type WitnessSet = PseudoWitnessSet<NativeScript, PlutusData, Redeemers>;
 pub type MintedWitnessSet<'b> =
     PseudoWitnessSet<KeepRaw<'b, NativeScript>, KeepRaw<'b, PlutusData>, KeepRaw<'b, Redeemers>>;
 
-pub type RawWitnessSet<'b> =
-    PseudoWitnessSet<OnlyRaw<'b, NativeScript>, OnlyRaw<'b, PlutusData>, OnlyRaw<'b, Redeemers>>;
-
 impl<'b> From<MintedWitnessSet<'b>> for WitnessSet {
     fn from(x: MintedWitnessSet<'b>) -> Self {
         WitnessSet {
@@ -1640,10 +1630,10 @@ pub type MintedBlock<'b> = PseudoBlock<
     KeepRaw<'b, AuxiliaryData>,
 >;
 
-pub type RawBlock<'b> = PseudoBlock<
-    OnlyRaw<'b, Header>,
-    OnlyRaw<'b, MintedTransactionBody<'b>>,
-    OnlyRaw<'b, RawWitnessSet<'b>>,
+pub type MintedBlockWithRawAuxiliary<'b> = PseudoBlock<
+    KeepRaw<'b, Header>,
+    KeepRaw<'b, MintedTransactionBody<'b>>,
+    KeepRaw<'b, MintedWitnessSet<'b>>,
     OnlyRaw<'b, AuxiliaryData>,
 >;
 
@@ -1707,9 +1697,9 @@ pub type MintedTx<'b> = PseudoTx<
     KeepRaw<'b, AuxiliaryData>,
 >;
 
-pub type RawTx<'b> = PseudoTx<
-    OnlyRaw<'b, MintedTransactionBody<'b>>,
-    OnlyRaw<'b, RawWitnessSet<'b>>,
+pub type MintedTxWithRawAuxiliary<'b> = PseudoTx<
+    KeepRaw<'b, MintedTransactionBody<'b>>,
+    KeepRaw<'b, MintedWitnessSet<'b>>,
     OnlyRaw<'b, AuxiliaryData>,
 >;
 
@@ -1728,7 +1718,7 @@ impl<'b> From<MintedTx<'b>> for Tx {
 mod tests {
     use pallas_codec::minicbor;
 
-    use super::{MintedBlock, RawBlock};
+    use super::{MintedBlock, MintedBlockWithRawAuxiliary};
 
     const TEST_BLOCKS: [&'static str; 4] = [
         include_str!("../../../test_data/conway1.block"),
@@ -1758,8 +1748,8 @@ mod tests {
     }
 
     #[test]
-    fn raw_block_isomorphic_decoding_encoding_test() {
-        type BlockWrapper<'b> = (u16, RawBlock<'b>);
+    fn minted_block_with_raw_aux_isomorphic_decoding_encoding_test() {
+        type BlockWrapper<'b> = (u16, MintedBlockWithRawAuxiliary<'b>);
 
         for (idx, block_str) in TEST_BLOCKS.iter().enumerate() {
             println!("decoding test block {}", idx + 1);
