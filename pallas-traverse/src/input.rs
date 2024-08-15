@@ -11,7 +11,6 @@ pub enum MultiEraInput<'b> {
     AlonzoCompatible(Box<Cow<'b, alonzo::TransactionInput>>),
 }
 
-
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct OutputRef(Hash<32>, u64);
 

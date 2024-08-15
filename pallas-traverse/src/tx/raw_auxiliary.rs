@@ -538,23 +538,6 @@ impl<'b> MultiEraTxWithRawAuxiliary<'b> {
         }
     }
 
-    // pub fn metadata(&self) -> Result<MultiEraMeta, Error> {
-    //     match self.aux_data() {
-    //         Some(x) => match x.deref().decode(). {
-    //             alonzo::AuxiliaryData::Shelley(x) =>
-    // MultiEraMeta::AlonzoCompatible(x),
-    // alonzo::AuxiliaryData::ShelleyMa(x) => {
-    // MultiEraMeta::AlonzoCompatible(&x.transaction_metadata)             }
-    //             alonzo::AuxiliaryData::PostAlonzo(x) => x
-    //                 .metadata
-    //                 .as_ref()
-    //                 .map(MultiEraMeta::AlonzoCompatible)
-    //                 .unwrap_or_default(),
-    //         },
-    //         None => MultiEraMeta::Empty,
-    //     }
-    // }
-
     pub fn required_signers(&self) -> MultiEraSigners {
         match self {
             Self::AlonzoCompatible(x, _) => x
