@@ -75,6 +75,13 @@ fn chunk_binary_search<ChunkT, PointT>(
 /// Iterates through the blocks until the given slot and block hash are reached.
 /// Returns an iterator over the blocks if the specific block is found,
 /// otherwise returns an error.
+///
+/// IFF the `block_hash` is zero length, then the search is "fuzzy",
+/// meaning that it will return the first block whose slot is greater than or
+/// equal to `slot`.  
+///
+/// Fuzzy Search allows a block to be found by an "expected slot#" without
+/// knowing precisely which block is being retrieved.
 fn iterate_till_point(
     iter: impl Iterator<Item = FallibleBlock>,
     slot: u64,
@@ -91,7 +98,7 @@ fn iterate_till_point(
 
                 match iter.peek() {
                     Some(Ok(data)) => {
-                        block_data = data.clone();
+                        block_data.clone_from(data);
                         block =
                             MultiEraBlock::decode(&block_data).map_err(Error::CannotDecodeBlock)?;
                     }
@@ -99,10 +106,15 @@ fn iterate_till_point(
                 }
             }
 
-            if block.hash().as_ref().eq(block_hash) && block.slot() == slot {
+            if (block_hash.is_empty() && block.slot() >= slot)
+                || (block.hash().as_ref().eq(block_hash) && block.slot() == slot)
+            {
                 Ok(iter)
             } else {
-                Err(Error::CannotFindBlock(Point::Specific(slot, block_hash.to_vec())).into())
+                Err(Error::CannotFindBlock(Point::Specific(
+                    slot,
+                    block_hash.to_vec(),
+                )))
             }
         }
         Some(Err(_)) | None => Ok(iter),
@@ -165,6 +177,16 @@ pub fn read_blocks(dir: &Path) -> Result<impl Iterator<Item = FallibleBlock>, Er
 
 /// Returns an iterator over the chain from the given point if the specific
 /// block is found, otherwise returns an error.
+///
+/// # Note:
+///
+/// If the given `point` is not the Origin, AND the BlockHash of the point is
+/// zero length. then the search for the first block is "Fuzzy".
+/// Only the Slot# of the point will be used and the first block to be returned
+/// will be the block whose slot is >= the given slot# in the point.
+///
+/// This allows iteration to commence from a calculated slot# where the precise
+/// block is unknown, and then continue iterating blocks after that point.
 ///
 /// # Errors
 ///
@@ -231,7 +253,7 @@ pub fn read_blocks_from_point(
                     if block.slot() == 0 && block.number() == 0 {
                         Ok(Box::new(iter))
                     } else {
-                        Err(Error::OriginMissing.into())
+                        Err(Error::OriginMissing)
                     }
                 }
                 Some(Err(_)) | None => Ok(Box::new(iter)),
@@ -414,11 +436,11 @@ mod tests {
             count += 1;
         }
 
-        assert_eq!(count, 1778);
+        assert_eq!(count, 1777);
     }
 
     #[test]
-    fn can_read_multiple_chunks_from_folder_2() {
+    fn can_read_multiple_chunks_from_folder_at_specific_point() {
         let reader = super::read_blocks_from_point(
             Path::new("../test_data"),
             Point::Specific(
@@ -444,7 +466,7 @@ mod tests {
             count += 1;
         }
 
-        assert_eq!(count, 1778);
+        assert_eq!(count, 1777);
     }
 
     #[test]
@@ -455,8 +477,8 @@ mod tests {
         assert_eq!(
             tip,
             Some(Point::Specific(
-                43610414,
-                hex::decode("80d02d3c9a576af65e4f36b95a57ae528b62c14836282fbd8d6a93aa1fef557f")
+                39679163,
+                hex::decode("53af88680ff3380814fdddc148caa1c6dbb89e5a30a5f6a439ee313424a14c55")
                     .unwrap()
             ))
         );
@@ -515,8 +537,8 @@ mod tests {
 
         // tip
         let point = Point::Specific(
-            43610414,
-            hex::decode("80d02d3c9a576af65e4f36b95a57ae528b62c14836282fbd8d6a93aa1fef557f")
+            39679163,
+            hex::decode("53af88680ff3380814fdddc148caa1c6dbb89e5a30a5f6a439ee313424a14c55")
                 .unwrap(),
         );
         let mut reader = read_blocks_from_point(Path::new("../test_data"), point.clone()).unwrap();

@@ -1,6 +1,6 @@
 //! Ledger primitives and cbor codec for the Conway era
 //!
-//! Handcrafted, idiomatic rust artifacts based on based on the [Conway CDDL](https://github.com/input-output-hk/cardano-ledger/blob/master/eras/conway/test-suite/cddl-files/conway.cddl) file in IOHK repo.
+//! Handcrafted, idiomatic rust artifacts based on based on the [Conway CDDL](https://github.com/IntersectMBO/cardano-ledger/blob/master/eras/conway/impl/cddl-files/conway.cddl) file in IntersectMBO repo.
 
 use std::ops::Deref;
 
@@ -45,7 +45,7 @@ pub use crate::alonzo::AssetName;
 
 pub type Multiasset<A> = NonEmptyKeyValuePairs<PolicyId, NonEmptyKeyValuePairs<AssetName, A>>;
 
-pub use crate::alonzo::Mint;
+pub type Mint = Multiasset<NonZeroInt>;
 
 pub use crate::alonzo::Coin;
 
@@ -541,15 +541,15 @@ pub struct CostMdls {
 #[cbor(map)]
 pub struct ProtocolParamUpdate {
     #[n(0)]
-    pub minfee_a: Option<u32>,
+    pub minfee_a: Option<u64>,
     #[n(1)]
-    pub minfee_b: Option<u32>,
+    pub minfee_b: Option<u64>,
     #[n(2)]
-    pub max_block_body_size: Option<u32>,
+    pub max_block_body_size: Option<u64>,
     #[n(3)]
-    pub max_transaction_size: Option<u32>,
+    pub max_transaction_size: Option<u64>,
     #[n(4)]
-    pub max_block_header_size: Option<u32>,
+    pub max_block_header_size: Option<u64>,
     #[n(5)]
     pub key_deposit: Option<Coin>,
     #[n(6)]
@@ -557,7 +557,7 @@ pub struct ProtocolParamUpdate {
     #[n(7)]
     pub maximum_epoch: Option<Epoch>,
     #[n(8)]
-    pub desired_number_of_stake_pools: Option<u32>,
+    pub desired_number_of_stake_pools: Option<u64>,
     #[n(9)]
     pub pool_pledge_influence: Option<RationalNumber>,
     #[n(10)]
@@ -578,18 +578,18 @@ pub struct ProtocolParamUpdate {
     #[n(21)]
     pub max_block_ex_units: Option<ExUnits>,
     #[n(22)]
-    pub max_value_size: Option<u32>,
+    pub max_value_size: Option<u64>,
     #[n(23)]
-    pub collateral_percentage: Option<u32>,
+    pub collateral_percentage: Option<u64>,
     #[n(24)]
-    pub max_collateral_inputs: Option<u32>,
+    pub max_collateral_inputs: Option<u64>,
 
     #[n(25)]
     pub pool_voting_thresholds: Option<PoolVotingThresholds>,
     #[n(26)]
     pub drep_voting_thresholds: Option<DRepVotingThresholds>,
     #[n(27)]
-    pub min_committee_size: Option<u32>,
+    pub min_committee_size: Option<u64>,
     #[n(28)]
     pub committee_term_limit: Option<Epoch>,
     #[n(29)]
@@ -601,7 +601,7 @@ pub struct ProtocolParamUpdate {
     #[n(32)]
     pub drep_inactivity_period: Option<Epoch>,
     #[n(33)]
-    pub minfee_refscript_cost_per_byte: Option<Epoch>,
+    pub minfee_refscript_cost_per_byte: Option<UnitInterval>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -720,7 +720,7 @@ pub struct PseudoTransactionBody<T1> {
     pub certificates: Option<NonEmptySet<Certificate>>,
 
     #[n(5)]
-    pub withdrawals: Option<KeyValuePairs<RewardAccount, Coin>>, // TODO: NON EMPTY
+    pub withdrawals: Option<NonEmptyKeyValuePairs<RewardAccount, Coin>>,
 
     #[n(7)]
     pub auxiliary_data_hash: Option<Bytes>,
@@ -1032,13 +1032,19 @@ impl<C> minicbor::encode::Encode<C> for GovAction {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-pub struct Constitution(Anchor, Nullable<ScriptHash>);
+pub struct Constitution {
+    pub anchor: Anchor,
+    pub guardrail_script: Nullable<ScriptHash>,
+}
 
 impl<'b, C> minicbor::Decode<'b, C> for Constitution {
     fn decode(d: &mut minicbor::Decoder<'b>, ctx: &mut C) -> Result<Self, minicbor::decode::Error> {
         d.array()?;
 
-        Ok(Self(d.decode_with(ctx)?, d.decode_with(ctx)?))
+        Ok(Self {
+            anchor: d.decode_with(ctx)?,
+            guardrail_script: d.decode_with(ctx)?,
+        })
     }
 }
 
@@ -1050,8 +1056,8 @@ impl<C> minicbor::Encode<C> for Constitution {
     ) -> Result<(), minicbor::encode::Error<W::Error>> {
         e.array(2)?;
 
-        e.encode_with(&self.0, ctx)?;
-        e.encode_with(&self.1, ctx)?;
+        e.encode_with(&self.anchor, ctx)?;
+        e.encode_with(&self.guardrail_script, ctx)?;
 
         Ok(())
     }
@@ -1128,13 +1134,19 @@ impl<C> minicbor::encode::Encode<C> for Voter {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Clone)]
-pub struct Anchor(String, Hash<32>);
+pub struct Anchor {
+    pub url: String,
+    pub content_hash: Hash<32>,
+}
 
 impl<'b, C> minicbor::Decode<'b, C> for Anchor {
     fn decode(d: &mut minicbor::Decoder<'b>, ctx: &mut C) -> Result<Self, minicbor::decode::Error> {
         d.array()?;
 
-        Ok(Self(d.decode_with(ctx)?, d.decode_with(ctx)?))
+        Ok(Self {
+            url: d.decode_with(ctx)?,
+            content_hash: d.decode_with(ctx)?,
+        })
     }
 }
 
@@ -1146,21 +1158,27 @@ impl<C> minicbor::Encode<C> for Anchor {
     ) -> Result<(), minicbor::encode::Error<W::Error>> {
         e.array(2)?;
 
-        e.encode_with(&self.0, ctx)?;
-        e.encode_with(self.1, ctx)?;
+        e.encode_with(&self.url, ctx)?;
+        e.encode_with(self.content_hash, ctx)?;
 
         Ok(())
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-pub struct GovActionId(Hash<32>, u32);
+pub struct GovActionId {
+    pub transaction_id: Hash<32>,
+    pub action_index: u32,
+}
 
 impl<'b, C> minicbor::Decode<'b, C> for GovActionId {
     fn decode(d: &mut minicbor::Decoder<'b>, ctx: &mut C) -> Result<Self, minicbor::decode::Error> {
         d.array()?;
 
-        Ok(Self(d.decode_with(ctx)?, d.decode_with(ctx)?))
+        Ok(Self {
+            transaction_id: d.decode_with(ctx)?,
+            action_index: d.decode_with(ctx)?,
+        })
     }
 }
 
@@ -1172,8 +1190,8 @@ impl<C> minicbor::Encode<C> for GovActionId {
     ) -> Result<(), minicbor::encode::Error<W::Error>> {
         e.array(2)?;
 
-        e.encode_with(self.0, ctx)?;
-        e.encode_with(self.1, ctx)?;
+        e.encode_with(self.transaction_id, ctx)?;
+        e.encode_with(self.action_index, ctx)?;
 
         Ok(())
     }
@@ -1220,7 +1238,8 @@ where
     }
 }
 
-pub use crate::babbage::PseudoPostAlonzoTransactionOutput;
+pub type PostAlonzoTransactionOutput =
+    crate::babbage::PseudoPostAlonzoTransactionOutput<Value, DatumOption, ScriptRef>;
 
 pub type TransactionOutput = PseudoTransactionOutput<PostAlonzoTransactionOutput>;
 
@@ -1236,10 +1255,11 @@ impl<'b> From<MintedTransactionOutput<'b>> for TransactionOutput {
     }
 }
 
-pub type PostAlonzoTransactionOutput = PseudoPostAlonzoTransactionOutput<DatumOption, ScriptRef>;
-
-pub type MintedPostAlonzoTransactionOutput<'b> =
-    PseudoPostAlonzoTransactionOutput<MintedDatumOption<'b>, MintedScriptRef<'b>>;
+pub type MintedPostAlonzoTransactionOutput<'b> = crate::babbage::PseudoPostAlonzoTransactionOutput<
+    Value,
+    MintedDatumOption<'b>,
+    MintedScriptRef<'b>,
+>;
 
 impl<'b> From<MintedPostAlonzoTransactionOutput<'b>> for PostAlonzoTransactionOutput {
     fn from(value: MintedPostAlonzoTransactionOutput<'b>) -> Self {
@@ -1710,6 +1730,10 @@ mod tests {
         let test_blocks = [
             include_str!("../../../test_data/conway1.block"),
             include_str!("../../../test_data/conway2.block"),
+            // interesting block with extreme values
+            include_str!("../../../test_data/conway3.block"),
+            // interesting block with extreme values
+            include_str!("../../../test_data/conway4.block"),
         ];
 
         for (idx, block_str) in test_blocks.iter().enumerate() {

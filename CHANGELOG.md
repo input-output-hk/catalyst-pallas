@@ -2,6 +2,96 @@
 ## [Unreleased]
 
 
+<a name="v0.29.0"></a>
+## [v0.29.0] - 2024-07-15
+### Chore
+- **interop:** update u5c spec to v0.7.0 ([#489](https://github.com/txpipe/pallas/issues/489))
+- **interop:** update u5c specs to v0.6 ([#485](https://github.com/txpipe/pallas/issues/485))
+
+### Feat
+- **hardano:** add fuzzy block search by slot in Immutable db ([#484](https://github.com/txpipe/pallas/issues/484))
+
+### Fix
+- **interop:** map missing u5c redeemers ([#490](https://github.com/txpipe/pallas/issues/490))
+- **interop:** use correct input order to match redeemers ([#487](https://github.com/txpipe/pallas/issues/487))
+- **interop:** check for spend purpose when matching redeemers ([#486](https://github.com/txpipe/pallas/issues/486))
+
+
+<a name="v0.28.0"></a>
+## [v0.28.0] - 2024-07-01
+### Build
+- **deps:** update itertools requirement from 0.12.1 to 0.13.0 ([#459](https://github.com/txpipe/pallas/issues/459))
+
+### Chore
+- fix lint warnings and outdated tests ([#475](https://github.com/txpipe/pallas/issues/475))
+- improve ImmutableDB error handling ([#426](https://github.com/txpipe/pallas/issues/426))
+- **math:** initialize pallas-math crate ([#474](https://github.com/txpipe/pallas/issues/474))
+
+### Ci
+- skip gmp dep until we can build on windows ([#476](https://github.com/txpipe/pallas/issues/476))
+
+### Feat
+- **network:** add tx submission and tx monitor clients to network facades ([#442](https://github.com/txpipe/pallas/issues/442))
+
+### Fix
+- relax CBOR decoding of Conway protocol params update ([#473](https://github.com/txpipe/pallas/issues/473))
+- **network:** handle end of list in tx monitor response ([#305](https://github.com/txpipe/pallas/issues/305))
+
+### Refactor
+- **interop:** use batching for utxorpc ledger interface ([#472](https://github.com/txpipe/pallas/issues/472))
+- **network:** don't treat rejected txs as submit protocol errors ([#306](https://github.com/txpipe/pallas/issues/306))
+
+
+<a name="v0.27.0"></a>
+## [v0.27.0] - 2024-06-01
+### Chore
+- fix lint warnings ([#470](https://github.com/txpipe/pallas/issues/470))
+- split unstable features into independent flags ([#469](https://github.com/txpipe/pallas/issues/469))
+- **traverse:** make era enum serializable ([#467](https://github.com/txpipe/pallas/issues/467))
+
+### Docs
+- define security policy ([#464](https://github.com/txpipe/pallas/issues/464))
+
+### Feat
+- **traverse:** Decode Conway block headers properly ([#466](https://github.com/txpipe/pallas/issues/466))
+
+### Fix
+- **network:** expose missing members in facades ([#468](https://github.com/txpipe/pallas/issues/468))
+
+
+<a name="v0.26.0"></a>
+## [v0.26.0] - 2024-05-21
+### Chore
+- apply lint recommendations ([#458](https://github.com/txpipe/pallas/issues/458))
+- move txbuilder to stable feature ([#451](https://github.com/txpipe/pallas/issues/451))
+- **applying:** prepare pparams for folding logic ([#438](https://github.com/txpipe/pallas/issues/438))
+- **deps:** use cryptoxide sha3 instead of depending on sha3 crate ([#452](https://github.com/txpipe/pallas/issues/452))
+
+### Feat
+- add a simple Crawler example ([#453](https://github.com/txpipe/pallas/issues/453))
+- **configs:** add serde for Alonzo genesis file ([#436](https://github.com/txpipe/pallas/issues/436))
+- **interop:** add ledger context for utxorpc mapping logic ([#450](https://github.com/txpipe/pallas/issues/450))
+- **interop:** re-export utxorpc spec to unify downstream versions ([#448](https://github.com/txpipe/pallas/issues/448))
+- **network:** add an extra ergonomic method for n2c chainsync ([#439](https://github.com/txpipe/pallas/issues/439))
+- **network:** implement `GetChainBlockNo` local state query ([#441](https://github.com/txpipe/pallas/issues/441))
+- **network:** implement background keep-alive loop ([#427](https://github.com/txpipe/pallas/issues/427))
+- **primitives:** derive Eq on relevant structs ([#446](https://github.com/txpipe/pallas/issues/446))
+- **traverse:** track original era for tx outputs ([#447](https://github.com/txpipe/pallas/issues/447))
+
+### Fix
+- **applying:** fix tx size calculation ([#443](https://github.com/txpipe/pallas/issues/443))
+- **configs:** parse directly into rational numbers ([#437](https://github.com/txpipe/pallas/issues/437))
+- **hardano:** exclude last chunk file during immutable db read ([#454](https://github.com/txpipe/pallas/issues/454))
+- **primitives:** handle conway extreme param updates ([#462](https://github.com/txpipe/pallas/issues/462))
+
+### Refactor
+- **applying:** unify approach for protocol params access ([#432](https://github.com/txpipe/pallas/issues/432))
+- **interop:** use stateful mapper for u5 ([#460](https://github.com/txpipe/pallas/issues/460))
+
+### Test
+- **hardano:** contemplate skip of last chunk in immutable read ([#457](https://github.com/txpipe/pallas/issues/457))
+
+
 <a name="v0.25.0"></a>
 ## [v0.25.0] - 2024-04-02
 ### Build
@@ -1132,7 +1222,11 @@ handshake, chainsync, localstate and blockfetch mini-protocols changed the API s
 - apply fmt to entire workspace
 
 
-[Unreleased]: https://github.com/txpipe/pallas/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/txpipe/pallas/compare/v0.29.0...HEAD
+[v0.29.0]: https://github.com/txpipe/pallas/compare/v0.28.0...v0.29.0
+[v0.28.0]: https://github.com/txpipe/pallas/compare/v0.27.0...v0.28.0
+[v0.27.0]: https://github.com/txpipe/pallas/compare/v0.26.0...v0.27.0
+[v0.26.0]: https://github.com/txpipe/pallas/compare/v0.25.0...v0.26.0
 [v0.25.0]: https://github.com/txpipe/pallas/compare/v0.24.0...v0.25.0
 [v0.24.0]: https://github.com/txpipe/pallas/compare/v0.23.0...v0.24.0
 [v0.23.0]: https://github.com/txpipe/pallas/compare/v0.22.0...v0.23.0

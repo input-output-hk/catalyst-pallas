@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::time::Duration;
 use thiserror::Error;
-use tracing::{debug, error, warn};
+use tracing::{debug, error};
 
 use tokio::net::{TcpListener, ToSocketAddrs};
 
@@ -12,8 +12,9 @@ use tokio::net::{unix::SocketAddr as UnixSocketAddr, UnixListener};
 use crate::miniprotocols::handshake::{n2c, n2n, Confirmation, VersionNumber};
 
 use crate::miniprotocols::{
-    blockfetch, chainsync, handshake, keepalive, localstate, txsubmission, PROTOCOL_N2C_CHAIN_SYNC,
-    PROTOCOL_N2C_HANDSHAKE, PROTOCOL_N2C_STATE_QUERY, PROTOCOL_N2N_BLOCK_FETCH,
+    blockfetch, chainsync, handshake, keepalive, localstate, localtxsubmission, txmonitor,
+    txsubmission, PROTOCOL_N2C_CHAIN_SYNC, PROTOCOL_N2C_HANDSHAKE, PROTOCOL_N2C_STATE_QUERY,
+    PROTOCOL_N2C_TX_MONITOR, PROTOCOL_N2C_TX_SUBMISSION, PROTOCOL_N2N_BLOCK_FETCH,
     PROTOCOL_N2N_CHAIN_SYNC, PROTOCOL_N2N_HANDSHAKE, PROTOCOL_N2N_KEEP_ALIVE,
     PROTOCOL_N2N_TX_SUBMISSION,
 };
@@ -67,7 +68,7 @@ impl KeepAliveLoop {
 
         loop {
             interval.tick().await;
-            warn!("sending keepalive request");
+            debug!("sending keepalive request");
 
             client
                 .keepalive_roundtrip()
@@ -190,7 +191,7 @@ pub struct PeerServer {
     pub txsubmission: txsubmission::Server,
     pub keepalive: keepalive::Server,
     accepted_address: Option<SocketAddr>,
-    accepted_version: Option<u64>,
+    accepted_version: Option<(u64, n2n::VersionData)>,
 }
 
 impl PeerServer {
@@ -236,9 +237,9 @@ impl PeerServer {
             .await
             .map_err(Error::HandshakeProtocol)?;
 
-        if let Some((version, _)) = accepted_version {
+        if let Some((version, data)) = accepted_version {
             client.accepted_address = Some(address);
-            client.accepted_version = Some(version);
+            client.accepted_version = Some((version, data));
             Ok(client)
         } else {
             client.abort().await;
@@ -266,6 +267,14 @@ impl PeerServer {
         &mut self.keepalive
     }
 
+    pub fn accepted_address(&self) -> Option<&SocketAddr> {
+        self.accepted_address.as_ref()
+    }
+
+    pub fn accepted_version(&self) -> Option<&(u64, n2n::VersionData)> {
+        self.accepted_version.as_ref()
+    }
+
     pub async fn abort(self) {
         self.plexer.abort().await
     }
@@ -277,6 +286,8 @@ pub struct NodeClient {
     handshake: handshake::N2CClient,
     chainsync: chainsync::N2CClient,
     statequery: localstate::Client,
+    submission: localtxsubmission::Client,
+    monitor: txmonitor::Client,
 }
 
 impl NodeClient {
@@ -286,6 +297,8 @@ impl NodeClient {
         let hs_channel = plexer.subscribe_client(PROTOCOL_N2C_HANDSHAKE);
         let cs_channel = plexer.subscribe_client(PROTOCOL_N2C_CHAIN_SYNC);
         let sq_channel = plexer.subscribe_client(PROTOCOL_N2C_STATE_QUERY);
+        let tx_channel = plexer.subscribe_client(PROTOCOL_N2C_TX_SUBMISSION);
+        let mo_channel = plexer.subscribe_client(PROTOCOL_N2C_TX_MONITOR);
 
         let plexer = plexer.spawn();
 
@@ -294,6 +307,8 @@ impl NodeClient {
             handshake: handshake::Client::new(hs_channel),
             chainsync: chainsync::Client::new(cs_channel),
             statequery: localstate::Client::new(sq_channel),
+            submission: localtxsubmission::Client::new(tx_channel),
+            monitor: txmonitor::Client::new(mo_channel),
         }
     }
 
@@ -398,6 +413,14 @@ impl NodeClient {
         &mut self.statequery
     }
 
+    pub fn submission(&mut self) -> &mut localtxsubmission::Client {
+        &mut self.submission
+    }
+
+    pub fn monitor(&mut self) -> &mut txmonitor::Client {
+        &mut self.monitor
+    }
+
     pub async fn abort(self) {
         self.plexer.abort().await
     }
@@ -406,10 +429,10 @@ impl NodeClient {
 /// Server of N2C Ouroboros.
 #[cfg(unix)]
 pub struct NodeServer {
-    plexer: RunningPlexer,
-    handshake: handshake::N2CServer,
-    chainsync: chainsync::N2CServer,
-    statequery: localstate::Server,
+    pub plexer: RunningPlexer,
+    pub handshake: handshake::N2CServer,
+    pub chainsync: chainsync::N2CServer,
+    pub statequery: localstate::Server,
     accepted_address: Option<UnixSocketAddr>,
     accpeted_version: Option<(VersionNumber, n2c::VersionData)>,
 }
@@ -472,6 +495,14 @@ impl NodeServer {
 
     pub fn statequery(&mut self) -> &mut localstate::Server {
         &mut self.statequery
+    }
+
+    pub fn accepted_address(&self) -> Option<&UnixSocketAddr> {
+        self.accepted_address.as_ref()
+    }
+
+    pub fn accepted_version(&self) -> Option<&(u64, n2c::VersionData)> {
+        self.accpeted_version.as_ref()
     }
 
     pub async fn abort(self) {

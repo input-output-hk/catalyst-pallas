@@ -1057,9 +1057,9 @@ impl<'b, C> minicbor::decode::Decode<'b, C> for PlutusData {
                 Ok(Self::Array(d.decode_with(ctx)?))
             }
 
-            _ => Err(minicbor::decode::Error::message(
-                "bad cbor data type for plutus data",
-            )),
+            any => Err(minicbor::decode::Error::message(format!(
+                "bad cbor data type ({any:?}) for plutus data"
+            ))),
         }
     }
 }
@@ -1200,7 +1200,7 @@ where
 #[derive(Serialize, Deserialize, Encode, Decode, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct ExUnits {
     #[n(0)]
-    pub mem: u32,
+    pub mem: u64,
     #[n(1)]
     pub steps: u64,
 }
