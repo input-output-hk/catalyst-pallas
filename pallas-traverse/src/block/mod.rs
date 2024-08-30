@@ -1,14 +1,25 @@
+mod raw_auxiliary;
+pub use raw_auxiliary::MultiEraBlockWithRawAuxiliary;
+
 use std::{borrow::Cow, ops::Deref};
 
 use pallas_codec::minicbor;
 use pallas_crypto::hash::Hash;
 use pallas_primitives::{alonzo, babbage, byron, conway};
 
-use crate::{
-    probe, support, Era, Error, MultiEraBlock, MultiEraHeader, MultiEraTx, MultiEraUpdate,
-};
+use crate::{probe, support, Era, Error, MultiEraHeader, MultiEraTx, MultiEraUpdate};
 
 type BlockWrapper<T> = (u16, T);
+
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum MultiEraBlock<'b> {
+    EpochBoundary(Box<byron::MintedEbBlock<'b>>),
+    AlonzoCompatible(Box<alonzo::MintedBlock<'b>>, Era),
+    Babbage(Box<babbage::MintedBlock<'b>>),
+    Byron(Box<byron::MintedBlock<'b>>),
+    Conway(Box<conway::MintedBlock<'b>>),
+}
 
 impl<'b> MultiEraBlock<'b> {
     pub fn decode_epoch_boundary(cbor: &'b [u8]) -> Result<Self, Error> {
@@ -125,19 +136,19 @@ impl<'b> MultiEraBlock<'b> {
     /// Builds a vec with the Txs of the block
     pub fn txs(&self) -> Vec<MultiEraTx> {
         match self {
-            MultiEraBlock::AlonzoCompatible(x, era) => support::clone_alonzo_txs(x)
+            MultiEraBlock::AlonzoCompatible(x, era) => support::clone_alonzo_minted_txs(x)
                 .into_iter()
                 .map(|x| MultiEraTx::AlonzoCompatible(Box::new(Cow::Owned(x)), *era))
                 .collect(),
-            MultiEraBlock::Babbage(x) => support::clone_babbage_txs(x)
+            MultiEraBlock::Babbage(x) => support::clone_babbage_minted_txs(x)
                 .into_iter()
                 .map(|x| MultiEraTx::Babbage(Box::new(Cow::Owned(x))))
                 .collect(),
-            MultiEraBlock::Byron(x) => support::clone_byron_txs(x)
+            MultiEraBlock::Byron(x) => support::clone_byron_minted_txs(x)
                 .into_iter()
                 .map(|x| MultiEraTx::Byron(Box::new(Cow::Owned(x))))
                 .collect(),
-            MultiEraBlock::Conway(x) => support::clone_conway_txs(x)
+            MultiEraBlock::Conway(x) => support::clone_conway_minted_txs(x)
                 .into_iter()
                 .map(|x| MultiEraTx::Conway(Box::new(Cow::Owned(x))))
                 .collect(),
@@ -245,11 +256,11 @@ mod tests {
     #[test]
     fn test_iteration() {
         let blocks = vec![
-            (include_str!("../../test_data/byron2.block"), 2usize),
-            (include_str!("../../test_data/shelley1.block"), 4),
-            (include_str!("../../test_data/mary1.block"), 14),
-            (include_str!("../../test_data/allegra1.block"), 3),
-            (include_str!("../../test_data/alonzo1.block"), 5),
+            (include_str!("../../../test_data/byron2.block"), 2usize),
+            (include_str!("../../../test_data/shelley1.block"), 4),
+            (include_str!("../../../test_data/mary1.block"), 14),
+            (include_str!("../../../test_data/allegra1.block"), 3),
+            (include_str!("../../../test_data/alonzo1.block"), 5),
         ];
 
         for (block_str, tx_count) in blocks.into_iter() {

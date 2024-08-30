@@ -1,6 +1,37 @@
+use pallas_codec::utils::{KeyValuePairs, NonEmptyKeyValuePairs};
+use pallas_codec::utils::{NonZeroInt, PositiveCoin};
 use pallas_crypto::hash::Hash;
+use pallas_primitives::alonzo;
 
-use crate::{MultiEraAsset, MultiEraPolicyAssets};
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum MultiEraPolicyAssets<'b> {
+    AlonzoCompatibleMint(
+        &'b alonzo::PolicyId,
+        &'b KeyValuePairs<alonzo::AssetName, i64>,
+    ),
+    AlonzoCompatibleOutput(
+        &'b alonzo::PolicyId,
+        &'b KeyValuePairs<alonzo::AssetName, u64>,
+    ),
+    ConwayMint(
+        &'b alonzo::PolicyId,
+        &'b NonEmptyKeyValuePairs<alonzo::AssetName, NonZeroInt>,
+    ),
+    ConwayOutput(
+        &'b alonzo::PolicyId,
+        &'b NonEmptyKeyValuePairs<alonzo::AssetName, PositiveCoin>,
+    ),
+}
+
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum MultiEraAsset<'b> {
+    AlonzoCompatibleOutput(&'b alonzo::PolicyId, &'b alonzo::AssetName, u64),
+    AlonzoCompatibleMint(&'b alonzo::PolicyId, &'b alonzo::AssetName, i64),
+    ConwayOutput(&'b alonzo::PolicyId, &'b alonzo::AssetName, PositiveCoin),
+    ConwayMint(&'b alonzo::PolicyId, &'b alonzo::AssetName, NonZeroInt),
+}
 
 impl<'b> MultiEraPolicyAssets<'b> {
     pub fn policy(&self) -> &Hash<28> {

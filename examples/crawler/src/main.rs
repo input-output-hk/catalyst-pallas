@@ -41,7 +41,8 @@ async fn main() -> Result<()> {
         .await?;
 
     loop {
-        // We either request the next block, or wait until we're told that the block is ready
+        // We either request the next block, or wait until we're told that the block is
+        // ready
         let next = client.chainsync().request_or_await_next().await?;
         // And depending on the message we receive...
         match next {
@@ -101,7 +102,8 @@ struct Args {
     /// The network magic used to handshake with that node; defaults to mainnet
     #[arg(short, long, env("CARDANO_NETWORK_MAGIC"), default_value_t = 764824073)]
     pub network_magic: u64,
-    /// A list of points to use when trying to decide a startpoint; defaults to origin
+    /// A list of points to use when trying to decide a startpoint; defaults to
+    /// origin
     #[arg(short, long, value_parser = parse_point)]
     pub point: Vec<Point>,
     /// Download only the first block found that matches this criteria

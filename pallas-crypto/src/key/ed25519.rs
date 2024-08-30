@@ -55,7 +55,6 @@ pub enum TryFromSignatureError {
 
 /// Error type used when retrieving a [`SecretKeyExtended`] via
 /// [`SecretKeyExtended::from_bytes`] or [`TryFrom`].
-///
 #[derive(Debug, Error)]
 pub enum TryFromSecretKeyExtendedError {
     #[error("Invalid Ed25519 Extended Secret Key format")]
@@ -146,8 +145,8 @@ impl SecretKey {
     ///
     /// This function is not safe because:
     ///
-    /// * using it removes all the security measure we put in place
-    ///   to protect your private key: opaque [`Debug`] impl, zeroisation on [`Drop`], ...
+    /// * using it removes all the security measure we put in place to protect
+    ///   your private key: opaque [`Debug`] impl, zeroisation on [`Drop`], ...
     /// * you will need to be careful not to leak the bytes
     ///
     /// # Example
@@ -159,7 +158,6 @@ impl SecretKey {
     /// # [0; SecretKey::SIZE].into() ;
     /// let _: [u8; SecretKey::SIZE] = unsafe { SecretKey::leak_into_bytes(key) };
     /// ```
-    ///
     #[inline]
     pub unsafe fn leak_into_bytes(Self(bytes): Self) -> [u8; Self::SIZE] {
         bytes
@@ -216,7 +214,6 @@ impl SecretKeyExtended {
     /// # let _ = key; Ok(()) }
     /// # assert!(matches!(test(), Err(TryFromSecretKeyExtendedError::InvalidBitTweaks)));
     /// ```
-    ///
     pub fn from_bytes(bytes: [u8; Self::SIZE]) -> Result<Self, TryFromSecretKeyExtendedError> {
         let candidate = Self(bytes);
         if candidate.check_structure() {
@@ -251,7 +248,6 @@ impl SecretKeyExtended {
     /// let key = unsafe { SecretKeyExtended::from_bytes_unchecked(bytes) };
     /// # let _ = key;
     /// ```
-    ///
     pub unsafe fn from_bytes_unchecked(bytes: [u8; Self::SIZE]) -> Self {
         Self(bytes)
     }
@@ -288,14 +284,15 @@ impl SecretKeyExtended {
     ///
     /// This function is on purpose an associated function in order to
     /// force the explicite use of the type name (`SecretKeyExtended`) and the
-    /// associated function when calling it: `SecretKeyExtended::leak_into_bytes(key)`.
+    /// associated function when calling it:
+    /// `SecretKeyExtended::leak_into_bytes(key)`.
     ///
     /// # Safety
     ///
     /// This function is not safe because:
     ///
-    /// * using it removes all the security measure we put in place
-    ///   to protect your private key: opaque [`Debug`] impl, zeroisation on [`Drop`], ...
+    /// * using it removes all the security measure we put in place to protect
+    ///   your private key: opaque [`Debug`] impl, zeroisation on [`Drop`], ...
     /// * you will need to be careful not to leak the bytes
     ///
     /// # Example
@@ -307,7 +304,6 @@ impl SecretKeyExtended {
     /// # unsafe { SecretKeyExtended::from_bytes_unchecked([0; SecretKeyExtended::SIZE]) };
     /// let _: [u8; SecretKeyExtended::SIZE] = unsafe { SecretKeyExtended::leak_into_bytes(key) };
     /// ```
-    ///
     #[inline]
     pub unsafe fn leak_into_bytes(Self(bytes): Self) -> [u8; Self::SIZE] {
         bytes
