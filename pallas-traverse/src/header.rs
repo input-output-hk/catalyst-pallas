@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::ops::Deref;
 
-use pallas_codec::{minicbor, utils::KeepRaw};
-use pallas_crypto::hash::{Hash, Hasher};
+use pallas_codec::minicbor;
+use pallas_crypto::hash::Hash;
 use pallas_primitives::{alonzo, babbage, byron};
 
 use crate::{wellknown::GenesisValues, Era, Error, OriginalHash};
@@ -95,6 +95,15 @@ impl<'b> MultiEraHeader<'b> {
         }
     }
 
+    pub fn header_body_cbor(&self) -> Option<&'b [u8]> {
+        match self {
+            MultiEraHeader::ShelleyCompatible(x) => Some(x.header_body.raw_cbor()),
+            MultiEraHeader::BabbageCompatible(x) => Some(x.header_body.raw_cbor()),
+            MultiEraHeader::EpochBoundary(_) => None,
+            MultiEraHeader::Byron(_) => None,
+        }
+    }
+
     pub fn vrf_vkey(&self) -> Option<&[u8]> {
         match self {
             MultiEraHeader::ShelleyCompatible(x) => Some(x.header_body.vrf_vkey.as_ref()),
@@ -117,11 +126,7 @@ impl<'b> MultiEraHeader<'b> {
         match self {
             MultiEraHeader::EpochBoundary(_) => Err(Error::InvalidEra(Era::Byron)),
             MultiEraHeader::ShelleyCompatible(x) => Ok(x.header_body.leader_vrf.0.to_vec()),
-            MultiEraHeader::BabbageCompatible(x) => {
-                let mut leader_tagged_vrf: Vec<u8> = vec![0x4C_u8]; /* "L" */
-                leader_tagged_vrf.extend(&*x.header_body.vrf_result.0);
-                Ok(Hasher::<256>::hash(&leader_tagged_vrf).to_vec())
-            }
+            MultiEraHeader::BabbageCompatible(x) => Ok(x.header_body.leader_vrf_output()),
             MultiEraHeader::Byron(_) => Err(Error::InvalidEra(Era::Byron)),
         }
     }
@@ -130,11 +135,7 @@ impl<'b> MultiEraHeader<'b> {
         match self {
             MultiEraHeader::EpochBoundary(_) => Err(Error::InvalidEra(Era::Byron)),
             MultiEraHeader::ShelleyCompatible(x) => Ok(x.header_body.nonce_vrf.0.to_vec()),
-            MultiEraHeader::BabbageCompatible(x) => {
-                let mut nonce_tagged_vrf: Vec<u8> = vec![0x4E_u8]; /* "N" */
-                nonce_tagged_vrf.extend(&*x.header_body.vrf_result.0);
-                Ok(Hasher::<256>::hash(&nonce_tagged_vrf).to_vec())
-            }
+            MultiEraHeader::BabbageCompatible(x) => Ok(x.header_body.nonce_vrf_output()),
             MultiEraHeader::Byron(_) => Err(Error::InvalidEra(Era::Byron)),
         }
     }
@@ -153,14 +154,14 @@ impl<'b> MultiEraHeader<'b> {
         }
     }
 
-    pub fn as_alonzo(&self) -> Option<&alonzo::Header> {
+    pub fn as_alonzo(&self) -> Option<&alonzo::MintedHeader> {
         match self {
             MultiEraHeader::ShelleyCompatible(x) => Some(x.deref().deref()),
             _ => None,
         }
     }
 
-    pub fn as_babbage(&self) -> Option<&babbage::Header> {
+    pub fn as_babbage(&self) -> Option<&babbage::MintedHeader> {
         match self {
             MultiEraHeader::BabbageCompatible(x) => Some(x.deref().deref()),
             _ => None,

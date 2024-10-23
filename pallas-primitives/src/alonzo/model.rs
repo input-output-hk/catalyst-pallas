@@ -69,13 +69,35 @@ pub type ProtocolVersion = (u64, u64);
 #[derive(Serialize, Deserialize, Encode, Decode, Debug, PartialEq, Eq)]
 pub struct KesSignature {}
 
+pub type MintedHeaderBody<'a> = KeepRaw<'a, HeaderBody>;
+
 #[derive(Serialize, Deserialize, Encode, Decode, Debug, PartialEq, Eq, Clone)]
-pub struct Header {
+pub struct PseudoHeader<T1> {
     #[n(0)]
-    pub header_body: HeaderBody,
+    pub header_body: T1,
 
     #[n(1)]
     pub body_signature: Bytes,
+}
+
+pub type Header = PseudoHeader<HeaderBody>;
+
+pub type MintedHeader<'a> = KeepRaw<'a, PseudoHeader<MintedHeaderBody<'a>>>;
+
+impl<'a> From<MintedHeader<'a>> for Header {
+    fn from(x: MintedHeader<'a>) -> Self {
+        let x = x.unwrap();
+        Self {
+            header_body: x.header_body.into(),
+            body_signature: x.body_signature,
+        }
+    }
+}
+
+impl<'a> From<MintedHeaderBody<'a>> for HeaderBody {
+    fn from(x: MintedHeaderBody<'a>) -> Self {
+        x.unwrap()
+    }
 }
 
 #[derive(
@@ -413,7 +435,7 @@ pub type UnitInterval = RationalNumber;
 
 pub type PositiveInterval = RationalNumber;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Hash)]
 pub enum StakeCredential {
     AddrKeyhash(AddrKeyhash),
     Scripthash(Scripthash),
@@ -1497,14 +1519,14 @@ pub type Block = PseudoBlock<Header, TransactionBody, WitnessSet, AuxiliaryData>
 /// original CBOR bytes for each structure that might require hashing. In this
 /// way, we make sure that the resulting hash matches what exists on-chain.
 pub type MintedBlock<'b> = PseudoBlock<
-    KeepRaw<'b, Header>,
+    KeepRaw<'b, MintedHeader<'b>>,
     KeepRaw<'b, TransactionBody>,
     KeepRaw<'b, MintedWitnessSet<'b>>,
     KeepRaw<'b, AuxiliaryData>,
 >;
 
 pub type MintedBlockWithRawAuxiliary<'b> = PseudoBlock<
-    KeepRaw<'b, Header>,
+    KeepRaw<'b, MintedHeader<'b>>,
     KeepRaw<'b, TransactionBody>,
     KeepRaw<'b, MintedWitnessSet<'b>>,
     OnlyRaw<'b, AuxiliaryData>,
@@ -1513,23 +1535,20 @@ pub type MintedBlockWithRawAuxiliary<'b> = PseudoBlock<
 impl<'b> From<MintedBlock<'b>> for Block {
     fn from(x: MintedBlock<'b>) -> Self {
         Block {
-            header: x.header.unwrap(),
-            transaction_bodies: match x.transaction_bodies {
-                MaybeIndefArray::Def(x) => {
-                    MaybeIndefArray::Def(x.into_iter().map(|v| v.unwrap()).collect())
-                }
-                MaybeIndefArray::Indef(x) => {
-                    MaybeIndefArray::Indef(x.into_iter().map(|v| v.unwrap()).collect())
-                }
-            },
-            transaction_witness_sets: match x.transaction_witness_sets {
-                MaybeIndefArray::Def(x) => {
-                    MaybeIndefArray::Def(x.into_iter().map(|v| v.unwrap().into()).collect())
-                }
-                MaybeIndefArray::Indef(x) => {
-                    MaybeIndefArray::Indef(x.into_iter().map(|v| v.unwrap().into()).collect())
-                }
-            },
+            header: x.header.unwrap().into(),
+            transaction_bodies: x
+                .transaction_bodies
+                .to_vec()
+                .into_iter()
+                .map(|x| x.unwrap())
+                .collect(),
+            transaction_witness_sets: x
+                .transaction_witness_sets
+                .to_vec()
+                .into_iter()
+                .map(|x| x.unwrap())
+                .map(WitnessSet::from)
+                .collect(),
             auxiliary_data_set: x
                 .auxiliary_data_set
                 .to_vec()

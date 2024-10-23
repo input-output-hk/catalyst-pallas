@@ -4,7 +4,8 @@ use minicbor::{
     Decode, Encode,
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt, hash::Hash as StdHash, ops::Deref};
+use std::str::FromStr;
+use std::{collections::HashMap, fmt, hash::Hash as StdHash, ops::Deref};
 
 static TAG_SET: u64 = 258;
 
@@ -64,6 +65,16 @@ where
     }
 }
 
+impl<K, V> FromIterator<(K, V)> for KeyValuePairs<K, V>
+where
+    K: Clone,
+    V: Clone,
+{
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        KeyValuePairs::Def(Vec::from_iter(iter))
+    }
+}
+
 impl<K, V> From<KeyValuePairs<K, V>> for Vec<(K, V)>
 where
     K: Clone,
@@ -84,6 +95,28 @@ where
 {
     fn from(other: Vec<(K, V)>) -> Self {
         KeyValuePairs::Def(other)
+    }
+}
+
+impl<K, V> From<KeyValuePairs<K, V>> for HashMap<K, V>
+where
+    K: Clone + Eq + std::hash::Hash,
+    V: Clone,
+{
+    fn from(other: KeyValuePairs<K, V>) -> Self {
+        match other {
+            KeyValuePairs::Def(x) => x.into_iter().collect(),
+            KeyValuePairs::Indef(x) => x.into_iter().collect(),
+        }
+    }
+}
+impl<K, V> From<HashMap<K, V>> for KeyValuePairs<K, V>
+where
+    K: Clone,
+    V: Clone,
+{
+    fn from(other: HashMap<K, V>) -> Self {
+        KeyValuePairs::Def(other.into_iter().collect())
     }
 }
 
@@ -226,6 +259,33 @@ where
             Err("NonEmptyKeyValuePairs must contain at least one element".into())
         } else {
             Ok(NonEmptyKeyValuePairs::Def(value))
+        }
+    }
+}
+
+impl<K, V> TryFrom<KeyValuePairs<K, V>> for NonEmptyKeyValuePairs<K, V>
+where
+    K: Clone,
+    V: Clone,
+{
+    type Error = String;
+
+    fn try_from(value: KeyValuePairs<K, V>) -> Result<Self, Self::Error> {
+        match value {
+            KeyValuePairs::Def(x) => {
+                if x.is_empty() {
+                    Err("NonEmptyKeyValuePairs must contain at least one element".into())
+                } else {
+                    Ok(NonEmptyKeyValuePairs::Def(x))
+                }
+            }
+            KeyValuePairs::Indef(x) => {
+                if x.is_empty() {
+                    Err("NonEmptyKeyValuePairs must contain at least one element".into())
+                } else {
+                    Ok(NonEmptyKeyValuePairs::Indef(x))
+                }
+            }
         }
     }
 }
@@ -1339,11 +1399,28 @@ impl Deref for Bytes {
     }
 }
 
+impl<const N: usize> TryFrom<&Bytes> for [u8; N] {
+    type Error = core::array::TryFromSliceError;
+
+    fn try_from(value: &Bytes) -> Result<Self, Self::Error> {
+        value.0.as_slice().try_into()
+    }
+}
+
 impl TryFrom<String> for Bytes {
     type Error = hex::FromHexError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let v = hex::decode(value)?;
+        Ok(Bytes(minicbor::bytes::ByteVec::from(v)))
+    }
+}
+
+impl FromStr for Bytes {
+    type Err = hex::FromHexError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let v = hex::decode(s)?;
         Ok(Bytes(minicbor::bytes::ByteVec::from(v)))
     }
 }

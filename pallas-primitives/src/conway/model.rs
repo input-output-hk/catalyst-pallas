@@ -604,6 +604,15 @@ pub struct ProtocolParamUpdate {
     pub minfee_refscript_cost_per_byte: Option<UnitInterval>,
 }
 
+#[derive(Serialize, Deserialize, Encode, Decode, Debug, PartialEq, Eq, Clone)]
+pub struct Update {
+    #[n(0)]
+    pub proposed_protocol_parameter_updates: KeyValuePairs<Genesishash, ProtocolParamUpdate>,
+
+    #[n(1)]
+    pub epoch: Epoch,
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct PoolVotingThresholds {
     pub motion_no_confidence: UnitInterval,
@@ -1594,6 +1603,7 @@ pub use crate::alonzo::Metadata;
 pub use crate::alonzo::AuxiliaryData;
 
 pub use crate::alonzo::TransactionIndex;
+use crate::babbage::MintedHeader;
 
 #[derive(Serialize, Deserialize, Encode, Decode, Debug, PartialEq, Clone)]
 pub struct PseudoBlock<T1, T2, T3, T4>
@@ -1624,7 +1634,7 @@ pub type Block = PseudoBlock<Header, TransactionBody, WitnessSet, AuxiliaryData>
 /// original CBOR bytes for each structure that might require hashing. In this
 /// way, we make sure that the resulting hash matches what exists on-chain.
 pub type MintedBlock<'b> = PseudoBlock<
-    KeepRaw<'b, Header>,
+    KeepRaw<'b, MintedHeader<'b>>,
     KeepRaw<'b, MintedTransactionBody<'b>>,
     KeepRaw<'b, MintedWitnessSet<'b>>,
     KeepRaw<'b, AuxiliaryData>,
@@ -1640,7 +1650,7 @@ pub type MintedBlockWithRawAuxiliary<'b> = PseudoBlock<
 impl<'b> From<MintedBlock<'b>> for Block {
     fn from(x: MintedBlock<'b>) -> Self {
         Block {
-            header: x.header.unwrap(),
+            header: x.header.unwrap().into(),
             transaction_bodies: MaybeIndefArray::Def(
                 x.transaction_bodies
                     .iter()

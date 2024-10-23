@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 use pallas_codec::minicbor::{Decode, Encode};
-use pallas_crypto::hash::Hash;
+use pallas_crypto::hash::{Hash, Hasher};
 
 use pallas_codec::utils::{
     Bytes, CborWrap, KeepRaw, KeyValuePairs, MaybeIndefArray, Nullable, OnlyRaw,
@@ -68,13 +68,35 @@ pub use crate::alonzo::ProtocolVersion;
 
 pub use crate::alonzo::KesSignature;
 
+pub type MintedHeaderBody<'a> = KeepRaw<'a, HeaderBody>;
+
 #[derive(Serialize, Deserialize, Encode, Decode, Debug, PartialEq, Eq, Clone)]
-pub struct Header {
+pub struct PseudoHeader<T1> {
     #[n(0)]
-    pub header_body: HeaderBody,
+    pub header_body: T1,
 
     #[n(1)]
     pub body_signature: Bytes,
+}
+
+pub type Header = PseudoHeader<HeaderBody>;
+
+pub type MintedHeader<'a> = KeepRaw<'a, PseudoHeader<MintedHeaderBody<'a>>>;
+
+impl<'a> From<MintedHeader<'a>> for Header {
+    fn from(x: MintedHeader<'a>) -> Self {
+        let x = x.unwrap();
+        Self {
+            header_body: x.header_body.into(),
+            body_signature: x.body_signature,
+        }
+    }
+}
+
+impl<'a> From<MintedHeaderBody<'a>> for HeaderBody {
+    fn from(x: MintedHeaderBody<'a>) -> Self {
+        x.unwrap()
+    }
 }
 
 pub use crate::alonzo::TransactionInput;
@@ -312,6 +334,34 @@ impl<'a> From<MintedTransactionBody<'a>> for TransactionBody {
             total_collateral: value.total_collateral,
             reference_inputs: value.reference_inputs,
         }
+    }
+}
+
+pub enum VrfDerivation {
+    Leader,
+    Nonce,
+}
+
+pub fn derive_tagged_vrf_output(
+    block_vrf_output_bytes: &[u8],
+    derivation: VrfDerivation,
+) -> Vec<u8> {
+    let mut tagged_vrf: Vec<u8> = match derivation {
+        VrfDerivation::Leader => vec![0x4C_u8], /* "L" */
+        VrfDerivation::Nonce => vec![0x4E_u8],  /* "N" */
+    };
+
+    tagged_vrf.extend(block_vrf_output_bytes);
+    Hasher::<256>::hash(&tagged_vrf).to_vec()
+}
+
+impl HeaderBody {
+    pub fn leader_vrf_output(&self) -> Vec<u8> {
+        derive_tagged_vrf_output(&self.vrf_result.0, VrfDerivation::Leader)
+    }
+
+    pub fn nonce_vrf_output(&self) -> Vec<u8> {
+        derive_tagged_vrf_output(&self.vrf_result.0, VrfDerivation::Nonce)
     }
 }
 
@@ -664,7 +714,7 @@ pub type Block = PseudoBlock<Header, TransactionBody, WitnessSet, AuxiliaryData>
 /// original CBOR bytes for each structure that might require hashing. In this
 /// way, we make sure that the resulting hash matches what exists on-chain.
 pub type MintedBlock<'b> = PseudoBlock<
-    KeepRaw<'b, Header>,
+    KeepRaw<'b, MintedHeader<'b>>,
     KeepRaw<'b, MintedTransactionBody<'b>>,
     KeepRaw<'b, MintedWitnessSet<'b>>,
     KeepRaw<'b, AuxiliaryData>,
@@ -680,7 +730,7 @@ pub type MintedBlockWithRawAuxiliary<'b> = PseudoBlock<
 impl<'b> From<MintedBlock<'b>> for Block {
     fn from(x: MintedBlock<'b>) -> Self {
         Block {
-            header: x.header.unwrap(),
+            header: x.header.unwrap().into(),
             transaction_bodies: MaybeIndefArray::Def(
                 x.transaction_bodies
                     .iter()

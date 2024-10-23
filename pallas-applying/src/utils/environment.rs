@@ -5,7 +5,7 @@ use pallas_primitives::{
         Coin, CostMdls, ExUnitPrices, ExUnits, Nonce, ProtocolVersion, RationalNumber, UnitInterval,
     },
     babbage::CostMdls as BabbageCostMdls,
-    conway::CostMdls as ConwayCostMdls,
+    conway::{CostMdls as ConwayCostMdls, Epoch},
 };
 
 #[allow(clippy::large_enum_variant)]
@@ -81,7 +81,7 @@ pub struct ShelleyProtParams {
     pub min_pool_cost: Coin,
     pub expansion_rate: UnitInterval,
     pub treasury_growth_rate: UnitInterval,
-    pub maximum_epoch: u32,
+    pub maximum_epoch: Epoch,
     pub pool_pledge_influence: RationalNumber,
     pub decentralization_constant: UnitInterval,
     pub extra_entropy: Nonce,
@@ -109,7 +109,7 @@ pub struct AlonzoProtParams {
     pub max_collateral_inputs: u32,
     pub expansion_rate: UnitInterval,
     pub treasury_growth_rate: UnitInterval,
-    pub maximum_epoch: u32,
+    pub maximum_epoch: Epoch,
     pub pool_pledge_influence: RationalNumber,
     pub decentralization_constant: UnitInterval,
     pub extra_entropy: Nonce,
@@ -137,7 +137,7 @@ pub struct BabbageProtParams {
     pub max_collateral_inputs: u32,
     pub expansion_rate: UnitInterval,
     pub treasury_growth_rate: UnitInterval,
-    pub maximum_epoch: u32,
+    pub maximum_epoch: Epoch,
     pub pool_pledge_influence: RationalNumber,
     pub decentralization_constant: UnitInterval,
     pub extra_entropy: Nonce,
@@ -165,17 +165,23 @@ pub struct ConwayProtParams {
     pub max_collateral_inputs: u32,
     pub expansion_rate: UnitInterval,
     pub treasury_growth_rate: UnitInterval,
-    pub maximum_epoch: u32,
+    pub maximum_epoch: Epoch,
     pub pool_pledge_influence: RationalNumber,
     pub pool_voting_thresholds: pallas_primitives::conway::PoolVotingThresholds,
     pub drep_voting_thresholds: pallas_primitives::conway::DRepVotingThresholds,
     pub min_committee_size: u64,
-    pub committee_term_limit: u32,
-    pub governance_action_validity_period: u32,
+    pub committee_term_limit: Epoch,
+    pub governance_action_validity_period: Epoch,
     pub governance_action_deposit: Coin,
     pub drep_deposit: Coin,
-    pub drep_inactivity_period: u32,
+    pub drep_inactivity_period: Epoch,
     pub minfee_refscript_cost_per_byte: UnitInterval,
+}
+
+#[derive(Default, Debug)]
+pub struct AccountState {
+    pub treasury: Coin,
+    pub reserves: Coin,
 }
 
 #[derive(Debug)]
@@ -184,6 +190,7 @@ pub struct Environment {
     pub prot_magic: u32,
     pub block_slot: u64,
     pub network_id: u8,
+    pub acnt: Option<AccountState>,
 }
 
 impl Environment {
@@ -201,5 +208,9 @@ impl Environment {
 
     pub fn network_id(&self) -> &u8 {
         &self.network_id
+    }
+
+    pub fn acnt(&self) -> &Option<AccountState> {
+        &self.acnt
     }
 }
