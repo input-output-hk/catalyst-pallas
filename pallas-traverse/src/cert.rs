@@ -1,6 +1,14 @@
+use std::borrow::Cow;
+
 use pallas_primitives::{alonzo, conway};
 
-use crate::MultiEraCert;
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum MultiEraCert<'b> {
+    NotApplicable,
+    AlonzoCompatible(Box<Cow<'b, alonzo::Certificate>>),
+    Conway(Box<Cow<'b, conway::Certificate>>),
+}
 
 impl<'b> MultiEraCert<'b> {
     pub fn as_alonzo(&self) -> Option<&alonzo::Certificate> {

@@ -26,7 +26,8 @@ pub trait FixedPrecision:
     /// Creates a new fixed point number with the given precision
     fn new(precision: u64) -> Self;
 
-    /// Creates a new fixed point number from an integer string. Precision tells us how many decimals
+    /// Creates a new fixed point number from an integer string. Precision tells
+    /// us how many decimals
     fn from_str(s: &str, precision: u64) -> Result<Self, Error>;
 
     /// Returns the precision of the fixed point number
@@ -36,9 +37,10 @@ pub trait FixedPrecision:
     /// and then calls the continued fraction approximation function.
     fn exp(&self) -> Self;
 
-    /// Entry point for 'ln' approximation. First does the necessary scaling, and
-    /// then calls the continued fraction calculation. For any value outside the
-    /// domain, i.e., 'x in (-inf,0]', the function returns '-INFINITY'.
+    /// Entry point for 'ln' approximation. First does the necessary scaling,
+    /// and then calls the continued fraction calculation. For any value
+    /// outside the domain, i.e., 'x in (-inf,0]', the function returns
+    /// '-INFINITY'.
     fn ln(&self) -> Self;
 
     /// Entry point for 'pow' function. x^y = exp(y * ln x)

@@ -1,10 +1,18 @@
-use std::{borrow::Cow, fmt::Display, ops::Deref, str::FromStr};
+use std::{borrow::Cow, fmt::Display, hash::Hash as StdHash, ops::Deref, str::FromStr};
 
 use pallas_codec::utils::CborWrap;
 use pallas_crypto::hash::Hash;
 use pallas_primitives::{alonzo, byron};
 
-use crate::{MultiEraInput, OutputRef};
+#[derive(Debug, Clone, PartialEq, Eq, StdHash)]
+#[non_exhaustive]
+pub enum MultiEraInput<'b> {
+    Byron(Box<Cow<'b, byron::TxIn>>),
+    AlonzoCompatible(Box<Cow<'b, alonzo::TransactionInput>>),
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct OutputRef(Hash<32>, u64);
 
 impl OutputRef {
     pub fn new(hash: Hash<32>, index: u64) -> Self {

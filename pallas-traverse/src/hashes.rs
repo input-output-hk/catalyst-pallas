@@ -1,5 +1,5 @@
 use crate::{ComputeHash, OriginalHash};
-use pallas_codec::utils::KeepRaw;
+use pallas_codec::utils::{KeepRaw, OnlyRaw};
 use pallas_crypto::{
     hash::{Hash, Hasher},
     key::ed25519::PublicKey,
@@ -20,6 +20,13 @@ impl OriginalHash<32> for KeepRaw<'_, byron::EbbHead> {
     }
 }
 
+impl OriginalHash<32> for OnlyRaw<'_, byron::EbbHead> {
+    fn original_hash(&self) -> Hash<32> {
+        // hash expects to have a prefix for the type of block
+        Hasher::<256>::hash_cbor(&(0, self))
+    }
+}
+
 impl ComputeHash<32> for byron::BlockHead {
     fn compute_hash(&self) -> Hash<32> {
         // hash expects to have a prefix for the type of block
@@ -28,6 +35,13 @@ impl ComputeHash<32> for byron::BlockHead {
 }
 
 impl OriginalHash<32> for KeepRaw<'_, byron::BlockHead> {
+    fn original_hash(&self) -> Hash<32> {
+        // hash expects to have a prefix for the type of block
+        Hasher::<256>::hash_cbor(&(1, self))
+    }
+}
+
+impl OriginalHash<32> for OnlyRaw<'_, byron::BlockHead> {
     fn original_hash(&self) -> Hash<32> {
         // hash expects to have a prefix for the type of block
         Hasher::<256>::hash_cbor(&(1, self))
@@ -46,6 +60,12 @@ impl OriginalHash<32> for KeepRaw<'_, byron::Tx> {
     }
 }
 
+impl OriginalHash<32> for OnlyRaw<'_, byron::Tx> {
+    fn original_hash(&self) -> Hash<32> {
+        Hasher::<256>::hash(self.raw_cbor())
+    }
+}
+
 impl ComputeHash<32> for alonzo::Header {
     fn compute_hash(&self) -> pallas_crypto::hash::Hash<32> {
         Hasher::<256>::hash_cbor(self)
@@ -59,6 +79,12 @@ impl OriginalHash<32> for KeepRaw<'_, alonzo::MintedHeader<'_>> {
 }
 
 impl OriginalHash<32> for KeepRaw<'_, babbage::MintedHeader<'_>> {
+    fn original_hash(&self) -> pallas_crypto::hash::Hash<32> {
+        Hasher::<256>::hash(self.raw_cbor())
+    }
+}
+
+impl OriginalHash<32> for OnlyRaw<'_, alonzo::Header> {
     fn original_hash(&self) -> pallas_crypto::hash::Hash<32> {
         Hasher::<256>::hash(self.raw_cbor())
     }
@@ -112,6 +138,12 @@ impl OriginalHash<32> for KeepRaw<'_, alonzo::TransactionBody> {
     }
 }
 
+impl OriginalHash<32> for OnlyRaw<'_, alonzo::TransactionBody> {
+    fn original_hash(&self) -> pallas_crypto::hash::Hash<32> {
+        Hasher::<256>::hash(self.raw_cbor())
+    }
+}
+
 impl ComputeHash<32> for babbage::Header {
     fn compute_hash(&self) -> pallas_crypto::hash::Hash<32> {
         Hasher::<256>::hash_cbor(self)
@@ -119,6 +151,12 @@ impl ComputeHash<32> for babbage::Header {
 }
 
 impl OriginalHash<32> for KeepRaw<'_, babbage::Header> {
+    fn original_hash(&self) -> pallas_crypto::hash::Hash<32> {
+        Hasher::<256>::hash(self.raw_cbor())
+    }
+}
+
+impl OriginalHash<32> for OnlyRaw<'_, babbage::Header> {
     fn original_hash(&self) -> pallas_crypto::hash::Hash<32> {
         Hasher::<256>::hash(self.raw_cbor())
     }
@@ -178,6 +216,12 @@ impl OriginalHash<32> for KeepRaw<'_, conway::TransactionBody> {
 }
 
 impl OriginalHash<32> for KeepRaw<'_, conway::MintedTransactionBody<'_>> {
+    fn original_hash(&self) -> pallas_crypto::hash::Hash<32> {
+        Hasher::<256>::hash(self.raw_cbor())
+    }
+}
+
+impl OriginalHash<32> for OnlyRaw<'_, conway::MintedTransactionBody<'_>> {
     fn original_hash(&self) -> pallas_crypto::hash::Hash<32> {
         Hasher::<256>::hash(self.raw_cbor())
     }

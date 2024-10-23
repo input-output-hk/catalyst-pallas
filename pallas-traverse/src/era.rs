@@ -1,6 +1,31 @@
 use std::fmt::{Display, Formatter};
 
-use crate::{Era, Feature};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum Era {
+    Byron,
+    Shelley,
+    Allegra, // time-locks
+    Mary,    // multi-assets
+    Alonzo,  // smart-contracts
+    Babbage, // CIP-31/32/33
+    Conway,  // governance CIP-1694
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[non_exhaustive]
+pub enum Feature {
+    TimeLocks,
+    MultiAssets,
+    Staking,
+    SmartContracts,
+    CIP31,
+    CIP32,
+    CIP33,
+    CIP1694,
+}
 
 impl Era {
     #[allow(clippy::match_like_matches_macro)]

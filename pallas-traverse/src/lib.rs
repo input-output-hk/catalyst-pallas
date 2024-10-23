@@ -1,36 +1,45 @@
 //! Utilities to traverse over multi-era block data
 
-use pallas_codec::utils::NonZeroInt;
-use pallas_codec::utils::PositiveCoin;
-use std::{borrow::Cow, fmt::Display, hash::Hash as StdHash};
+use std::fmt::Display;
 
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
-use pallas_codec::utils::{KeepRaw, KeyValuePairs, NonEmptyKeyValuePairs};
-use pallas_crypto::hash::Hash;
-use pallas_primitives::{alonzo, babbage, byron, conway};
 
 mod support;
 
-pub mod assets;
-pub mod auxiliary;
-pub mod block;
-pub mod cert;
-pub mod era;
+mod assets;
+mod auxiliary;
+mod block;
+mod cert;
+mod era;
 pub mod fees;
 pub mod hashes;
-pub mod header;
-pub mod input;
-pub mod meta;
-pub mod output;
+mod header;
+mod input;
+mod meta;
+mod output;
 pub mod probe;
-pub mod redeemers;
-pub mod signers;
-pub mod size;
+mod redeemers;
+mod signers;
+mod size;
 pub mod time;
-pub mod tx;
+mod tx;
 pub mod update;
+mod withdrawals;
+mod witnesses;
+
+pub use assets::{MultiEraAsset, MultiEraPolicyAssets};
+pub use block::{MultiEraBlock, MultiEraBlockWithRawAuxiliary};
+pub use cert::MultiEraCert;
+pub use era::{Era, Feature};
+pub use header::MultiEraHeader;
+pub use input::{MultiEraInput, OutputRef};
+pub use meta::MultiEraMeta;
+pub use output::MultiEraOutput;
+pub use redeemers::MultiEraRedeemer;
+pub use signers::MultiEraSigners;
+pub use tx::{MultiEraTx, MultiEraTxWithRawAuxiliary};
+pub use update::MultiEraUpdate;
+pub use withdrawals::MultiEraWithdrawals;
 pub mod value;
 pub mod withdrawals;
 pub mod witnesses;

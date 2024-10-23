@@ -2,7 +2,15 @@ use std::borrow::Cow;
 
 use pallas_primitives::{alonzo, conway};
 
-use crate::MultiEraRedeemer;
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum MultiEraRedeemer<'b> {
+    AlonzoCompatible(Box<Cow<'b, alonzo::Redeemer>>),
+    Conway(
+        Box<Cow<'b, conway::RedeemersKey>>,
+        Box<Cow<'b, conway::RedeemersValue>>,
+    ),
+}
 
 impl<'b> MultiEraRedeemer<'b> {
     pub fn tag(&self) -> conway::RedeemerTag {

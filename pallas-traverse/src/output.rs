@@ -4,7 +4,16 @@ use pallas_addresses::{Address, ByronAddress, Error as AddressError};
 use pallas_codec::minicbor;
 use pallas_primitives::{alonzo, babbage, byron, conway};
 
-use crate::{Era, MultiEraOutput, MultiEraPolicyAssets, MultiEraValue};
+use crate::{Era, MultiEraPolicyAssets};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum MultiEraOutput<'b> {
+    AlonzoCompatible(Box<Cow<'b, alonzo::TransactionOutput>>, Era),
+    Babbage(Box<Cow<'b, babbage::MintedTransactionOutput<'b>>>),
+    Conway(Box<Cow<'b, conway::MintedTransactionOutput<'b>>>),
+    Byron(Box<Cow<'b, byron::TxOut>>),
+}
 
 impl<'b> MultiEraOutput<'b> {
     pub fn from_byron(output: &'b byron::TxOut) -> Self {

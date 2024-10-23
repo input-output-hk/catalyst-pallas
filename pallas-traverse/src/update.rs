@@ -54,7 +54,15 @@ pub type ProtocolVersion = alonzo::ProtocolVersion;
 pub type PoolVotingThresholds = conway::PoolVotingThresholds;
 pub type DRepVotingThresholds = conway::DRepVotingThresholds;
 
-use crate::{Era, MultiEraUpdate};
+use crate::Era;
+
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum MultiEraUpdate<'b> {
+    Byron(u64, Box<Cow<'b, byron::UpProp>>),
+    AlonzoCompatible(Box<Cow<'b, alonzo::Update>>),
+    Babbage(Box<Cow<'b, babbage::Update>>),
+}
 
 impl<'b> MultiEraUpdate<'b> {
     pub fn decode_for_era(era: Era, cbor: &'b [u8]) -> Result<Self, minicbor::decode::Error> {

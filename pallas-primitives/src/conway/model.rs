@@ -12,7 +12,7 @@ use pallas_crypto::hash::Hash;
 
 use pallas_codec::utils::{
     Bytes, CborWrap, KeepRaw, KeyValuePairs, MaybeIndefArray, NonEmptyKeyValuePairs, NonEmptySet,
-    NonZeroInt, Nullable, PositiveCoin, Set,
+    NonZeroInt, Nullable, OnlyRaw, PositiveCoin, Set,
 };
 
 // required for derive attrs to work
@@ -20,8 +20,8 @@ use pallas_codec::minicbor;
 
 pub use crate::alonzo::VrfCert;
 
-use crate::babbage;
 pub use crate::babbage::HeaderBody;
+use crate::babbage::{self};
 
 pub use crate::babbage::OperationalCert;
 
@@ -1247,9 +1247,6 @@ where
     }
 }
 
-pub type PostAlonzoTransactionOutput =
-    crate::babbage::PseudoPostAlonzoTransactionOutput<Value, DatumOption, ScriptRef>;
-
 pub type TransactionOutput = PseudoTransactionOutput<PostAlonzoTransactionOutput>;
 
 pub type MintedTransactionOutput<'b> =
@@ -1263,6 +1260,9 @@ impl<'b> From<MintedTransactionOutput<'b>> for TransactionOutput {
         }
     }
 }
+
+pub type PostAlonzoTransactionOutput =
+    crate::babbage::PseudoPostAlonzoTransactionOutput<Value, DatumOption, ScriptRef>;
 
 pub type MintedPostAlonzoTransactionOutput<'b> = crate::babbage::PseudoPostAlonzoTransactionOutput<
     Value,
@@ -1435,40 +1435,17 @@ pub use crate::alonzo::BootstrapWitness;
 
 #[derive(Serialize, Deserialize, Encode, Decode, Debug, PartialEq, Clone)]
 #[cbor(map)]
-pub struct WitnessSet {
+pub struct PseudoWitnessSet<T1, T2, T3>
+where
+    T1: std::clone::Clone,
+    T2: std::clone::Clone,
+    T3: std::clone::Clone,
+{
     #[n(0)]
     pub vkeywitness: Option<NonEmptySet<VKeyWitness>>,
 
     #[n(1)]
-    pub native_script: Option<NonEmptySet<NativeScript>>,
-
-    #[n(2)]
-    pub bootstrap_witness: Option<NonEmptySet<BootstrapWitness>>,
-
-    #[n(3)]
-    pub plutus_v1_script: Option<NonEmptySet<PlutusV1Script>>,
-
-    #[n(4)]
-    pub plutus_data: Option<NonEmptySet<PlutusData>>,
-
-    #[n(5)]
-    pub redeemer: Option<Redeemers>,
-
-    #[n(6)]
-    pub plutus_v2_script: Option<NonEmptySet<PlutusV2Script>>,
-
-    #[n(7)]
-    pub plutus_v3_script: Option<NonEmptySet<PlutusV3Script>>,
-}
-
-#[derive(Encode, Decode, Debug, PartialEq, Clone)]
-#[cbor(map)]
-pub struct MintedWitnessSet<'b> {
-    #[n(0)]
-    pub vkeywitness: Option<NonEmptySet<VKeyWitness>>,
-
-    #[n(1)]
-    pub native_script: Option<NonEmptySet<KeepRaw<'b, NativeScript>>>,
+    pub native_script: Option<NonEmptySet<T1>>,
 
     #[n(2)]
     pub bootstrap_witness: Option<NonEmptySet<BootstrapWitness>>,
@@ -1477,10 +1454,10 @@ pub struct MintedWitnessSet<'b> {
     pub plutus_v1_script: Option<NonEmptySet<PlutusV1Script>>,
 
     #[b(4)]
-    pub plutus_data: Option<NonEmptySet<KeepRaw<'b, PlutusData>>>,
+    pub plutus_data: Option<NonEmptySet<T2>>,
 
     #[n(5)]
-    pub redeemer: Option<KeepRaw<'b, Redeemers>>,
+    pub redeemer: Option<T3>,
 
     #[n(6)]
     pub plutus_v2_script: Option<NonEmptySet<PlutusV2Script>>,
@@ -1488,6 +1465,11 @@ pub struct MintedWitnessSet<'b> {
     #[n(7)]
     pub plutus_v3_script: Option<NonEmptySet<PlutusV3Script>>,
 }
+
+pub type WitnessSet = PseudoWitnessSet<NativeScript, PlutusData, Redeemers>;
+
+pub type MintedWitnessSet<'b> =
+    PseudoWitnessSet<KeepRaw<'b, NativeScript>, KeepRaw<'b, PlutusData>, KeepRaw<'b, Redeemers>>;
 
 impl<'b> From<MintedWitnessSet<'b>> for WitnessSet {
     fn from(x: MintedWitnessSet<'b>) -> Self {
@@ -1544,6 +1526,8 @@ pub enum PseudoScript<T1> {
 pub type ScriptRef = PseudoScript<NativeScript>;
 
 pub type MintedScriptRef<'b> = PseudoScript<KeepRaw<'b, NativeScript>>;
+
+pub type RawScriptRef<'b> = PseudoScript<OnlyRaw<'b, NativeScript>>;
 
 impl<'b> From<MintedScriptRef<'b>> for ScriptRef {
     fn from(value: MintedScriptRef<'b>) -> Self {
@@ -1656,6 +1640,13 @@ pub type MintedBlock<'b> = PseudoBlock<
     KeepRaw<'b, AuxiliaryData>,
 >;
 
+pub type MintedBlockWithRawAuxiliary<'b> = PseudoBlock<
+    KeepRaw<'b, Header>,
+    KeepRaw<'b, MintedTransactionBody<'b>>,
+    KeepRaw<'b, MintedWitnessSet<'b>>,
+    OnlyRaw<'b, AuxiliaryData>,
+>;
+
 impl<'b> From<MintedBlock<'b>> for Block {
     fn from(x: MintedBlock<'b>) -> Self {
         Block {
@@ -1716,6 +1707,12 @@ pub type MintedTx<'b> = PseudoTx<
     KeepRaw<'b, AuxiliaryData>,
 >;
 
+pub type MintedTxWithRawAuxiliary<'b> = PseudoTx<
+    KeepRaw<'b, MintedTransactionBody<'b>>,
+    KeepRaw<'b, MintedWitnessSet<'b>>,
+    OnlyRaw<'b, AuxiliaryData>,
+>;
+
 impl<'b> From<MintedTx<'b>> for Tx {
     fn from(x: MintedTx<'b>) -> Self {
         Tx {
@@ -1731,26 +1728,44 @@ impl<'b> From<MintedTx<'b>> for Tx {
 mod tests {
     use pallas_codec::minicbor;
 
-    use super::MintedBlock;
+    use super::{MintedBlock, MintedBlockWithRawAuxiliary};
 
-    type BlockWrapper<'b> = (u16, MintedBlock<'b>);
+    const TEST_BLOCKS: [&'static str; 4] = [
+        include_str!("../../../test_data/conway1.block"),
+        include_str!("../../../test_data/conway2.block"),
+        // interesting block with extreme values
+        include_str!("../../../test_data/conway3.block"),
+        // interesting block with extreme values
+        include_str!("../../../test_data/conway4.block"),
+    ];
 
     #[test]
-    fn block_isomorphic_decoding_encoding() {
-        let test_blocks = [
-            include_str!("../../../test_data/conway1.block"),
-            include_str!("../../../test_data/conway2.block"),
-            // interesting block with extreme values
-            include_str!("../../../test_data/conway3.block"),
-            // interesting block with extreme values
-            include_str!("../../../test_data/conway4.block"),
-        ];
+    fn minted_block_isomorphic_decoding_encoding_test() {
+        type BlockWrapper<'b> = (u16, MintedBlock<'b>);
 
-        for (idx, block_str) in test_blocks.iter().enumerate() {
+        for (idx, block_str) in TEST_BLOCKS.iter().enumerate() {
             println!("decoding test block {}", idx + 1);
             let bytes = hex::decode(block_str).unwrap_or_else(|_| panic!("bad block file {idx}"));
 
-            let block: BlockWrapper = minicbor::decode(&bytes)
+            let block: BlockWrapper = minicbor::decode(bytes.as_slice())
+                .unwrap_or_else(|e| panic!("error decoding cbor for file {idx}: {e:?}"));
+
+            let bytes2 = minicbor::to_vec(block)
+                .unwrap_or_else(|e| panic!("error encoding block cbor for file {idx}: {e:?}"));
+
+            assert!(bytes.eq(&bytes2), "re-encoded bytes didn't match original");
+        }
+    }
+
+    #[test]
+    fn minted_block_with_raw_aux_isomorphic_decoding_encoding_test() {
+        type BlockWrapper<'b> = (u16, MintedBlockWithRawAuxiliary<'b>);
+
+        for (idx, block_str) in TEST_BLOCKS.iter().enumerate() {
+            println!("decoding test block {}", idx + 1);
+            let bytes = hex::decode(block_str).unwrap_or_else(|_| panic!("bad block file {idx}"));
+
+            let block: BlockWrapper = minicbor::decode(bytes.as_slice())
                 .unwrap_or_else(|e| panic!("error decoding cbor for file {idx}: {e:?}"));
 
             let bytes2 = minicbor::to_vec(block)

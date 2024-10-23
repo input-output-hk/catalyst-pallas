@@ -1,6 +1,13 @@
-use pallas_primitives::alonzo;
+use pallas_primitives::{alonzo, conway};
 
-use crate::MultiEraWithdrawals;
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum MultiEraWithdrawals<'b> {
+    NotApplicable,
+    Empty,
+    AlonzoCompatible(&'b alonzo::Withdrawals),
+    Conway(&'b conway::Withdrawals),
+}
 
 impl<'b> MultiEraWithdrawals<'b> {
     pub fn as_alonzo(&self) -> Option<&alonzo::Withdrawals> {
