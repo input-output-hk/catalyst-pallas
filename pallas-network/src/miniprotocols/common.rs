@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use pallas_codec::minicbor::{decode, encode, Decode, Decoder, Encode, Encoder};
 
 /// Well-known magic for testnet
-pub const TESTNET_MAGIC: u64 = 1097911063;
+pub const TESTNET_MAGIC: u64 = 42;
 
 /// Well-known magic for mainnet
 pub const MAINNET_MAGIC: u64 = 764824073;

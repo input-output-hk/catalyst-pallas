@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Well-known params for testnet
-pub const TESTNET_MAGIC: u64 = 1097911063;
+pub const TESTNET_MAGIC: u64 = 42;
 pub const TESTNET_NETWORK_ID: u64 = 0;
 
 /// Well-known params for mainnet
@@ -59,13 +59,13 @@ impl GenesisValues {
         GenesisValues {
             magic: TESTNET_MAGIC,
             network_id: TESTNET_NETWORK_ID,
-            byron_epoch_length: 432000,
-            byron_slot_length: 20,
+            byron_epoch_length: 100000,
+            byron_slot_length: 1000,
             byron_known_slot: 0,
             byron_known_time: 1564010416,
             byron_known_hash: "8f8602837f7c6f8b8867dd1cbc1842cf51a27eaed2c70ef48325d00f8efb320f"
                 .to_string(),
-            shelley_epoch_length: 432000,
+            shelley_epoch_length: 100,
             shelley_slot_length: 1,
             shelley_known_slot: 1598400,
             shelley_known_hash: "02b1c561715da9e540411123a6135ee319b02f60b9a11a603d3305556c04329f"
