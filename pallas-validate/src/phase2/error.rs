@@ -1,5 +1,5 @@
 use pallas_primitives::{conway::Language, TransactionInput};
-use uplc_turbo::{
+use pallas_uplc::{
     binder::DeBruijn,
     flat::FlatDecodeError,
     machine::{self, ExBudget},
@@ -7,13 +7,13 @@ use uplc_turbo::{
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("{0}")]
+    #[error("address error: {0}")]
     Address(#[from] pallas_addresses::Error),
     #[error("only shelley reward addresses can be a part of withdrawals")]
     BadWithdrawalAddress,
-    #[error("{0}")]
+    #[error("flat decode error: {0}")]
     FlatDecode(#[from] FlatDecodeError),
-    #[error("{0}")]
+    #[error("fragment decode error: {0}")]
     FragmentDecode(#[from] pallas_primitives::Error),
     #[error("{}{}", .0, .2.iter()
         .map(|trace| {
